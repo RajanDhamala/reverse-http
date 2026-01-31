@@ -1,0 +1,35 @@
+
+name: goProject
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  serverTest:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.22"
+
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Build code
+        run: go build -o runtime ./main.go
+
+      - name: Run the server in background
+        run: ./runtime &
+        
+      - name: Wait for server to start
+        run: sleep 2
+
+      - name: Test server route
+        run: curl http://localhost:3000/appConfig
+
