@@ -6,10 +6,12 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"reverse-http/Configs"
 )
 
 func main() {
 	host := os.Getenv("HOST")
+	db.InitDatabase()
 	if host == "" {
 		host = "0.0.0.0"
 	}
