@@ -1,14 +1,13 @@
-
 name: goProject
 
 on:
-  push:
+  pull_request:
     branches: ["main"]
 
 jobs:
   serverTest:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,10 +25,9 @@ jobs:
 
       - name: Run the server in background
         run: ./runtime &
-        
+
       - name: Wait for server to start
         run: sleep 2
 
       - name: Test server route
         run: curl http://localhost:3000/appConfig
-

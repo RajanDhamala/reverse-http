@@ -9,7 +9,6 @@ RUN go mod tidy
 RUN go build -o runtime ./main.go
 
 
-
 FROM alpine:3.18
 WORKDIR /app
 
