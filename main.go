@@ -1,17 +1,29 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
+	db "reverse-http/Configs"
+	route "reverse-http/Route"
+	utils "reverse-http/Utils"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"reverse-http/Configs"
-	"reverse-http/Route"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	err := godotenv.Load("./.env")
+	if err != nil {
+		log.Fatal("Error loading .env file:", err)
+	}
+
 	host := os.Getenv("HOST")
+	fmt.Println("host:", host)
+	githubSecret := os.Getenv("GITHUB_CLIENT_ID")
+	fmt.Println("GitHub Client Secret:", githubSecret)
 	db.InitDatabase()
 	if host == "" {
 		host = "0.0.0.0"
@@ -22,6 +34,9 @@ func main() {
 		port = "3000"
 	}
 
+	utils.GoogleConfig()
+	utils.GithubConfig()
+
 	addr := host + ":" + port
 	log.Println("Listening on", addr)
 
@@ -29,6 +44,7 @@ func main() {
 
 	app.Use(recover.New())
 	route.UserRouter(app)
+	route.OauthRouter(app)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello, World!")

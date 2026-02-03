@@ -16,4 +16,7 @@ func OauthRouter(app *fiber.App) {
 
 	OauthRouter.Get("/github/login", controller.GithubLogin)
 	OauthRouter.Get("/github/callback", controller.GithubCallback)
+
+	OauthRouter.Get("/google/login", controller.GoogleLogin)
+	OauthRouter.Get("/google/callback", controller.GoogleCallback)
 }

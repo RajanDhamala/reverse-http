@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+	"log"
 	"os"
 
 	"golang.org/x/oauth2"
@@ -16,14 +18,22 @@ type Config struct {
 var AppConfig Config
 
 func GoogleConfig() oauth2.Config {
-	RedirectURL := "http://localhost:3000/oauth/google/callback"
-	GoogleClientId := os.Getenv("GOOGLE_CLIENT_ID")
-	GoogleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	clientId := os.Getenv("GOOGLE_CLIENT_ID")
+	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	redirectURL := os.Getenv("GOOGLE_REDIRECT_URI")
+
+	if redirectURL == "" {
+		redirectURL = "http://localhost:3000/oauth/google/callback"
+	}
+
+	if clientId == "" || clientSecret == "" {
+		log.Println("Warning: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set")
+	}
 
 	AppConfig.GoogleLoginConfig = oauth2.Config{
-		RedirectURL:  RedirectURL,
-		ClientID:     GoogleClientId,
-		ClientSecret: GoogleClientSecret,
+		RedirectURL:  redirectURL,
+		ClientID:     clientId,
+		ClientSecret: clientSecret,
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
 			"https://www.googleapis.com/auth/userinfo.profile",
@@ -35,17 +45,25 @@ func GoogleConfig() oauth2.Config {
 }
 
 func GithubConfig() oauth2.Config {
-	RedirectURL := "http://localhost:3000/oauth/github/callback"
-	GithubClientId := os.Getenv("GITHUB_CLIENT_ID")
-	GithubClientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
+	clientId := os.Getenv("GITHUB_CLIENT_ID")
+	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
+	redirectURL := os.Getenv("GITHUB_REDIRECT_URI")
+
+	fmt.Println("redirectURL:", redirectURL)
+
+	if redirectURL == "" {
+		redirectURL = "http://localhost:3000/oauth/github/callback"
+	}
+
+	if clientId == "" || clientSecret == "" {
+		log.Println("Warning: GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET not set")
+	}
 
 	AppConfig.GitHubLoginConfig = oauth2.Config{
-		RedirectURL: RedirectURL,
-		ClientID:    GithubClientId,
-		// RedirectURL: fmt.Sprintf(
-		//	"https://github.com/login/oauth/authorize?scope=user:repo&client_id=%s&redirect_uri=%s", os.Getenv("GITHUB_CLIENT_ID"), "http://localhost:8080/github_callback"),
-		ClientSecret: GithubClientSecret,
-		Scopes:       []string{"user", "repo"},
+		RedirectURL:  redirectURL,
+		ClientID:     clientId,
+		ClientSecret: clientSecret,
+		Scopes:       []string{"user:email", "read:user"},
 		Endpoint:     github.Endpoint,
 	}
 
