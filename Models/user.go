@@ -13,7 +13,7 @@ type User struct {
 	Username         string    `gorm:"not null"`
 	Email            string    `gorm:" unique ;not null"`
 	Password         string    `gorm:"default: null"`
-	GithubProviderId string    `gorm:"unique; default:null "`
+	GithubProviderId string    `gorm:"unique; default: null "`
 	GoogleProviderId string    `gorm:"unique; default:null"`
 
 	Type        string        `gorm:"default:'free'"`
@@ -28,10 +28,10 @@ type User struct {
 type AppConfig struct {
 	Id uuid.UUID `gorm:"type:uuid; primaryKey"`
 
-	AppName   string `json:"app_name"`
-	Endpoint  string `json:"endpoint"`
-	Key       string `json:"key" gorm:"uniqueIndex"`
-	UserId    uint   `gorm:"not null;index"`
+	AppName   string    `json:"app_name"`
+	Endpoint  string    `json:"endpoint"`
+	Key       string    `json:"key" gorm:"uniqueIndex"`
+	UserId    uuid.UUID `gorm:"not null;index"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt
@@ -40,9 +40,9 @@ type AppConfig struct {
 type OauthConfig struct {
 	Id uuid.UUID `gorm:"type:uuid; primaryKey"`
 
-	Key       string `json:"key" gorm:"uniqueIndex"`
-	Endpoint  string `json:"endpoint"`
-	UserId    uint   `gorm:"not null;index"`
+	Key       string    `json:"key" gorm:"uniqueIndex"`
+	Endpoint  string    `json:"endpoint"`
+	UserId    uuid.UUID `gorm:"not null;index"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt

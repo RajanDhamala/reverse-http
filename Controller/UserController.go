@@ -98,7 +98,7 @@ func LoginUser(c *fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "accessToken",
 		Value:    NewAccessToken,
-		HTTPOnly: true,
+		HTTPOnly: false,
 		Path:     "/",
 		Secure:   false, // true in production env
 		Expires:  time.Now().Add(15 * time.Minute),
@@ -107,7 +107,7 @@ func LoginUser(c *fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "refreshToken",
 		Value:    NewRefreshToken,
-		HTTPOnly: true,
+		HTTPOnly: false,
 		Path:     "/",
 		Secure:   false,
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
@@ -119,9 +119,75 @@ func LoginUser(c *fiber.Ctx) error {
 	})
 }
 
+func OauthLogin(oauthData *OAuthUserData) (*utils.UserJWT, error) {
+	var user models.User
+	var whereQuery string
+	var whereArgs []any
+
+	user.Email = oauthData.Email
+	user.Username = oauthData.FullName
+	user.Avatar = oauthData.AvatarURL
+
+	if oauthData.Provider == "github" {
+		user.GithubProviderId = oauthData.ProviderId
+		whereQuery = "email = ? AND github_provider_id = ?"
+		whereArgs = []any{oauthData.Email, oauthData.ProviderId}
+	} else if oauthData.Provider == "google" {
+		user.GoogleProviderId = oauthData.ProviderId
+		whereQuery = "email = ? AND google_provider_id = ?"
+		whereArgs = []any{oauthData.Email, oauthData.ProviderId}
+	} else {
+		return nil, fmt.Errorf("unsupported oauth provider")
+	}
+
+	err := db.DB.
+		Where(whereQuery, whereArgs...).
+		First(&user).Error
+
+	if err == nil {
+		return &utils.UserJWT{
+			Id:       user.Id.String(),
+			Username: user.Username,
+		}, nil
+	}
+
+	user.Id = uuid.New()
+
+	if err := db.DB.Create(&user).Error; err != nil {
+		return nil, err
+	}
+
+	return &utils.UserJWT{
+		Id:       user.Id.String(),
+		Username: user.Username,
+	}, nil
+}
+
 func LogoutUser(c *fiber.Ctx) error {
-	c.ClearCookie("accessToken")
-	c.ClearCookie("refreshToken")
+	fmt.Println("logout user called")
+
+	// Clear accessToken
+	c.Cookie(&fiber.Cookie{
+		Name:     "accessToken",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HTTPOnly: false,
+		Secure:   false,
+		Expires:  time.Now().Add(-time.Hour), // Set to past time
+	})
+
+	// Clear refreshToken
+	c.Cookie(&fiber.Cookie{
+		Name:     "refreshToken",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HTTPOnly: false,
+		Secure:   false,
+		Expires:  time.Now().Add(-time.Hour), // Set to past time
+	})
+
 	return c.Status(200).JSON(fiber.Map{
 		"message": "logout successfully",
 	})

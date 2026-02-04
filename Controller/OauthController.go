@@ -7,18 +7,21 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 
 	utils "reverse-http/Utils"
 )
 
 type OAuthUserData struct {
-	Provider  string `json:"provider"`
-	ID        string `json:"id"`
-	Email     string `json:"email"`
-	FullName  string `json:"full_name"`
-	AvatarURL string `json:"avatar_url"`
+	Id         uuid.UUID `json:"id"`
+	Provider   string    `json:"provider"`
+	ProviderId string    `json:"roviderId"`
+	Email      string    `json:"email"`
+	FullName   string    `json:"full_name"`
+	AvatarURL  string    `json:"avatar_url"`
 }
 
 type GitHubUser struct {
@@ -105,12 +108,44 @@ func GithubCallback(c *fiber.Ctx) error {
 	}
 
 	oauthData := OAuthUserData{
-		Provider:  "github",
-		ID:        fmt.Sprintf("%d", githubUser.ID),
-		Email:     githubUser.Email,
-		FullName:  githubUser.Name,
-		AvatarURL: githubUser.AvatarURL,
+		Provider:   "github",
+		ProviderId: fmt.Sprintf("%d", githubUser.ID),
+		Email:      githubUser.Email,
+		FullName:   githubUser.Name,
+		AvatarURL:  githubUser.AvatarURL,
 	}
+	jwtPaylod, error := OauthLogin(&oauthData)
+	if error != nil {
+		fmt.Print("user creation failed man")
+	}
+
+	NewAccessToken, err := utils.CreateAccessToken(jwtPaylod)
+	if err != nil {
+		fmt.Println("issue while generating access token")
+	}
+
+	NewRefreshToken, err := utils.CreateRefreshToken(jwtPaylod)
+	if err != nil {
+		fmt.Println("issue while generating refresh token")
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "accessToken",
+		Value:    NewAccessToken,
+		HTTPOnly: true,
+		Path:     "/",
+		Secure:   false, // true in production env
+		Expires:  time.Now().Add(15 * time.Minute),
+	})
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "refreshToken",
+		Value:    NewRefreshToken,
+		HTTPOnly: true,
+		Path:     "/",
+		Secure:   false,
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+	})
 
 	return redirectWithUserData(c, oauthData)
 }
@@ -158,12 +193,45 @@ func GoogleCallback(c *fiber.Ctx) error {
 	}
 
 	oauthData := OAuthUserData{
-		Provider:  "google",
-		ID:        googleUser.ID,
-		Email:     googleUser.Email,
-		FullName:  googleUser.Name,
-		AvatarURL: googleUser.Picture,
+		Provider:   "google",
+		ProviderId: googleUser.ID,
+		Email:      googleUser.Email,
+		FullName:   googleUser.Name,
+		AvatarURL:  googleUser.Picture,
 	}
+
+	jwtPaylod, error := OauthLogin(&oauthData)
+	if error != nil {
+		fmt.Print("user creation failed man")
+	}
+
+	NewAccessToken, err := utils.CreateAccessToken(jwtPaylod)
+	if err != nil {
+		fmt.Println("issue while generating access token")
+	}
+
+	NewRefreshToken, err := utils.CreateRefreshToken(jwtPaylod)
+	if err != nil {
+		fmt.Println("issue while generating refresh token")
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "accessToken",
+		Value:    NewAccessToken,
+		HTTPOnly: true,
+		Path:     "/",
+		Secure:   false, // true in production env
+		Expires:  time.Now().Add(15 * time.Minute),
+	})
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "refreshToken",
+		Value:    NewRefreshToken,
+		HTTPOnly: true,
+		Path:     "/",
+		Secure:   false,
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+	})
 
 	return redirectWithUserData(c, oauthData)
 }
