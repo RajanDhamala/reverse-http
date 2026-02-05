@@ -68,3 +68,69 @@ func CreateReverseRoute(c *fiber.Ctx) error {
 		"data":    reverseData,
 	})
 }
+
+func RedirectRequest(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "include roteId in req",
+		})
+	}
+
+	uId, err := uuid.Parse(id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid id",
+		})
+	}
+
+	fmt.Println("id:", id)
+
+	data := models.OauthConfig{}
+
+	error := db.DB.Where("id=?", uId).Find(&data).Error
+	if error == nil {
+		return c.Redirect(data.Endpoint)
+	}
+
+	fmt.Println("invalid key")
+	return c.Status(404).JSON(fiber.Map{
+		"error": "invalid key",
+	})
+}
+
+func GetRedirectList(c *fiber.Ctx) error {
+	usrData := c.Locals("user").(*utils.UserJWT)
+	userId, err := uuid.Parse(usrData.Id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid user id",
+		})
+	}
+
+	type OauthConfigLite struct {
+		Id       uuid.UUID
+		Key      string
+		Endpoint string
+	}
+
+	var data []OauthConfigLite
+
+	error := db.DB.
+		Table("oauth_configs").
+		Where("user_id = ?", userId).
+		Select("id, key, endpoint").
+		Find(&data).Error
+
+	if error != nil {
+		fmt.Println("error while calling db")
+		return c.Status(400).JSON(fiber.Map{
+			"error": "no reverse endpoint set",
+		})
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"data":    data,
+		"message": "succesfully fetched reverse-http data",
+	})
+}
