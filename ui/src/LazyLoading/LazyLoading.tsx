@@ -7,3 +7,11 @@ export const LazyOAuthCallback = lazy(() => import("../Auth/OAuthCallback.tsx"))
 export const LazyTestPage = lazy(() => import("../Pages/TestPage.tsx"));
 export const LazyAddRoute = lazy(() => import("../Pages/AddRoute.tsx"));
 
+export const LazyUpdateConfig = lazy(() => import("../Pages/UpdateConfig.tsx"));
+
+
+
+
+
+
+

@@ -16,7 +16,10 @@ func ReverseHttpRouter(app *fiber.App) {
 	})
 
 	ReverseRoute.Post("/add", middleware.AuthUser, controller.CreateReverseRoute)
-	ReverseRoute.Get("/redirect/:id", controller.RedirectRequest)
+
+	ReverseRoute.All("/oauth/callback/:id", controller.RedirectRequest)
 
 	ReverseRoute.Get("/list", middleware.AuthUser, controller.GetRedirectList)
+
+	ReverseRoute.Post("/edit", middleware.AuthUser, controller.UpdateConfig)
 }

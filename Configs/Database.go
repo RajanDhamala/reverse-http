@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"reverse-http/Models"
 )
 
 var DB *gorm.DB
@@ -14,7 +15,7 @@ var DB *gorm.DB
 func InitDatabase() {
 	dsn := os.Getenv("DATABASE_URL")
 	fmt.Println("os data:", string(dsn))
-	envirnment:=os.Getenv("ENVIRONMENT")
+	envirnment := os.Getenv("ENVIRONMENT")
 	if envirnment == "development" {
 		dsn = "host=localhost user=postgres dbname=appdb port=5432 sslmode=disable"
 		log.Println("Using local database")
@@ -29,11 +30,12 @@ func InitDatabase() {
 	}
 
 	// Auto-migrate models
-	// err = DB.AutoMigrate(
-	// 	&models.User{},
-	// 	&models.AppConfig{},
-	// 	&models.OauthConfig{},
-	// )
+	err = DB.AutoMigrate(
+		&models.User{},
+		&models.AppConfig{},
+		&models.OauthConfig{},
+		&models.KeyValueStore{},
+	)
 	if err != nil {
 		log.Fatal("Migration failed:", err)
 	}

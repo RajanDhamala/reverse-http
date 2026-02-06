@@ -52,7 +52,7 @@ func GithubConfig() oauth2.Config {
 	fmt.Println("redirectURL:", redirectURL)
 
 	if redirectURL == "" {
-		redirectURL = "http://localhost:3000/oauth/github/callback"
+		redirectURL = "http://192.168.18.26:3000/oauth/github/callback"
 	}
 
 	if clientId == "" || clientSecret == "" {

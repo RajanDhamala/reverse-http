@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/proxy"
 	"github.com/google/uuid"
 	"reverse-http/Configs"
 	"reverse-http/Models"
@@ -13,6 +14,12 @@ import (
 type ReverseHttpReq struct {
 	Name     string `json:"name"`
 	Endpoint string `json:"endpoint"`
+}
+
+type UpdateConfigReq struct {
+	Id       uuid.UUID `json:"id"`
+	Key      string    `json:"key"`
+	Endpoint string    `json:"endpoint"`
 }
 
 func CreateReverseRoute(c *fiber.Ctx) error {
@@ -72,31 +79,20 @@ func CreateReverseRoute(c *fiber.Ctx) error {
 func RedirectRequest(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"error": "include roteId in req",
-		})
+		return c.Status(400).JSON(fiber.Map{"error": "include routeId"})
 	}
 
 	uId, err := uuid.Parse(id)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"error": "invalid id",
-		})
+		return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
 	}
-
-	fmt.Println("id:", id)
 
 	data := models.OauthConfig{}
-
-	error := db.DB.Where("id=?", uId).Find(&data).Error
-	if error == nil {
-		return c.Redirect(data.Endpoint)
+	if err := db.DB.Where("id = ?", uId).First(&data).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "invalid key"})
 	}
 
-	fmt.Println("invalid key")
-	return c.Status(404).JSON(fiber.Map{
-		"error": "invalid key",
-	})
+	return proxy.Do(c, data.Endpoint)
 }
 
 func GetRedirectList(c *fiber.Ctx) error {
@@ -132,5 +128,39 @@ func GetRedirectList(c *fiber.Ctx) error {
 	return c.Status(200).JSON(fiber.Map{
 		"data":    data,
 		"message": "succesfully fetched reverse-http data",
+	})
+}
+
+func UpdateConfig(c *fiber.Ctx) error {
+	usrData := c.Locals("user").(*utils.UserJWT)
+	data := UpdateConfigReq{}
+
+	if err := c.BodyParser(&data); err != nil {
+		fmt.Println("failed to parse the body")
+		return c.Status(400).JSON(fiber.Map{
+			"error": "failed to parse the body",
+		})
+	}
+
+	uId, err := uuid.Parse(usrData.Id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid user id",
+		})
+	}
+
+	errors := db.DB.
+		Model(&models.OauthConfig{}).
+		Where("id = ? AND user_id = ?", data.Id, uId).
+		Updates(map[string]interface{}{
+			"key":      data.Key,
+			"endpoint": data.Endpoint,
+		}).Error
+	if errors != nil {
+		fmt.Println("failed to update the db man")
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"message": "succesfully updated the config",
 	})
 }
