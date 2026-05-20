@@ -1,13 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
-	db "reverse-http/Configs"
+	database "reverse-http/Configs"
+	controller "reverse-http/Controller"
 	route "reverse-http/Route"
 	utils "reverse-http/Utils"
+	sqlc "reverse-http/db/sqlc"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -22,10 +23,12 @@ func main() {
 	}
 
 	host := os.Getenv("HOST")
-	fmt.Println("host:", host)
-	githubSecret := os.Getenv("GITHUB_CLIENT_ID")
-	fmt.Println("GitHub Client Secret:", githubSecret)
-	db.InitDatabase()
+	dbPool, err := database.ConnectDB()
+	if err != nil {
+		log.Fatal("Error connecting to the database:", err)
+	}
+	defer dbPool.Close()
+
 	if host == "" {
 		host = "0.0.0.0"
 	}
@@ -39,7 +42,6 @@ func main() {
 	utils.GithubConfig()
 
 	addr := host + ":" + port
-	log.Println("Listening on", addr)
 
 	app := fiber.New()
 
@@ -52,31 +54,15 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	route.UserRouter(app)
-	route.OauthRouter(app)
-	route.ReverseHttpRouter(app)
+	ctrl := controller.NewController(sqlc.New(dbPool), dbPool)
+
+	route.UserRouter(app, ctrl)
+	route.OauthRouter(app, ctrl)
+	route.AppConfigRouter(app, ctrl)
+	route.ReverseHttpRouter(app, ctrl)
 
 	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("Hello, World!")
-	})
-
-	app.Get("/appConfig", func(c *fiber.Ctx) error {
-		return c.Status(200).JSON(fiber.Map{
-			"appName":  "goPass",
-			"endpoint": "192.168.18.26:8000",
-		})
-	})
-
-	app.Get("/oauthNavigate/:id", func(c *fiber.Ctx) error {
-		id := c.Params("id")
-
-		if id == "" {
-			return c.Status(400).JSON(fiber.Map{
-				"error": "please include id in req",
-			})
-		}
-
-		return c.Redirect("https://192.168.18.26:5173/")
+		return c.SendString("Hello, Reverse Http is Ready 2 Serve!")
 	})
 
 	log.Fatal(app.Listen(addr))

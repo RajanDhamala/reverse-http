@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-
-	"github.com/google/uuid"
-	"github.com/lib/pq"
-	"reverse-http/Configs"
-	"reverse-http/Models"
 	"reverse-http/Utils"
+	db "reverse-http/db/sqlc"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/lib/pq"
 )
 
 type RegisterUserRequest struct {
@@ -19,38 +19,59 @@ type RegisterUserRequest struct {
 	Password string `json:"password"`
 }
 
-func RegisterUser(c *fiber.Ctx) error {
-	data := RegisterUserRequest{}
+func (ctrl *Controller) RegisterUser(c *fiber.Ctx) error {
+	req := RegisterUserRequest{}
 
-	if err := c.BodyParser(&data); err != nil {
-		c.Status(400).JSON(fiber.Map{
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{
 			"error": "failed to parse body",
 		})
 	}
-	HashedPassword, err := utils.HashPassword(data.Password)
+
+	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
-		fmt.Println("failed to hashedPassword")
-		return c.Status(500).JSON(fiber.Map{"message": "internal server error"})
+		fmt.Println("failed to hash password")
+
+		return c.Status(500).JSON(fiber.Map{
+			"error": "internal server error",
+		})
 	}
 
-	user := models.User{
-		Id:       uuid.New(),
-		Email:    data.Email,
-		Password: HashedPassword,
-		Username: data.Username,
-	}
-
-	errs := db.DB.Create(&user).Error
-	if errs != nil {
-		if pqErr, ok := errs.(*pq.Error); ok && pqErr.Code == "23505" {
-			return c.Status(400).JSON(fiber.Map{"error": "User with this email already exists"})
+	createdUser, err := ctrl.queries.CreateUser(
+		c.Context(),
+		db.CreateUserParams{
+			Username: req.Username,
+			Email:    req.Email,
+			Password: pgtype.Text{
+				String: hashedPassword,
+				Valid:  true,
+			},
+			GithubProviderID: pgtype.Text{
+				Valid: false,
+			},
+			GoogleProviderID: pgtype.Text{
+				Valid: false,
+			},
+			Avatar: pgtype.Text{
+				Valid: false,
+			},
+		},
+	)
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "user with this email already exists",
+			})
 		}
-		return c.Status(500).JSON(fiber.Map{"error": "Database error"})
+
+		return c.Status(500).JSON(fiber.Map{
+			"error": "database error",
+		})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+	return c.Status(201).JSON(fiber.Map{
 		"message": "user created successfully",
-		"data":    user,
+		"data":    createdUser,
 	})
 }
 
@@ -59,107 +80,136 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-func LoginUser(c *fiber.Ctx) error {
+func (ctrl *Controller) LoginUser(c *fiber.Ctx) error {
 	loginData := LoginRequest{}
 
 	if err := c.BodyParser(&loginData); err != nil {
-		fmt.Println("failed to parse the body")
-		return c.Status(500).JSON(fiber.Map{"error": "failed to parse body"})
+		return c.Status(400).JSON(fiber.Map{
+			"error": "failed to parse body",
+		})
 	}
 
-	user := models.User{}
-	if error := db.DB.Where("email=?", loginData.Email).Select("password username").Find(&user).Error; error != nil {
-		fmt.Println("user not found in db")
-		return c.Status(500).JSON(fiber.Map{"error": "invalid credentials"})
-	}
-
-	err := utils.ComaprePasswrod(user.Password, loginData.Password)
+	user, err := ctrl.queries.GetUserByEmail(
+		c.Context(),
+		loginData.Email,
+	)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "invalid credentials",
 		})
 	}
 
-	data := utils.UserJWT{
+	err = utils.ComaprePasswrod(
+		user.Password.String,
+		loginData.Password,
+	)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid credentials",
+		})
+	}
+
+	jwtData := utils.UserJWT{
 		Username: user.Username,
-		Id:       user.Id.String(),
+		Id:       user.ID.String(),
 	}
 
-	NewAccessToken, err := utils.CreateAccessToken(&data)
+	accessToken, err := utils.CreateAccessToken(&jwtData)
 	if err != nil {
-		fmt.Println("issue while generating access token")
+		return c.Status(500).JSON(fiber.Map{
+			"error": "failed to generate access token",
+		})
 	}
 
-	NewRefreshToken, err := utils.CreateRefreshToken(&data)
+	refreshToken, err := utils.CreateRefreshToken(&jwtData)
 	if err != nil {
-		fmt.Println("issue while generating refresh token")
+		return c.Status(500).JSON(fiber.Map{
+			"error": "failed to generate refresh token",
+		})
 	}
 
 	c.Cookie(&fiber.Cookie{
 		Name:     "accessToken",
-		Value:    NewAccessToken,
-		HTTPOnly: false,
+		Value:    accessToken,
+		HTTPOnly: true,
 		Path:     "/",
-		Secure:   false, // true in production env
+		Secure:   false,
 		Expires:  time.Now().Add(15 * time.Minute),
 	})
 
 	c.Cookie(&fiber.Cookie{
 		Name:     "refreshToken",
-		Value:    NewRefreshToken,
-		HTTPOnly: false,
+		Value:    refreshToken,
+		HTTPOnly: true,
 		Path:     "/",
 		Secure:   false,
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 	})
 
 	return c.Status(200).JSON(fiber.Map{
-		"message": "server is working btw",
-		"route":   c.Path(),
+		"message": "login successful",
 	})
 }
 
-func OauthLogin(oauthData *OAuthUserData) (*utils.UserJWT, error) {
-	var user models.User
-	var whereQuery string
-	var whereArgs []any
-
-	user.Email = oauthData.Email
-	user.Username = oauthData.FullName
-	user.Avatar = oauthData.AvatarURL
+func (ctrl *Controller) OauthLogin(oauthData *OAuthUserData, c *fiber.Ctx) (*utils.UserJWT, error) {
+	Email := oauthData.Email
+	Username := oauthData.FullName
+	Avatar := oauthData.AvatarURL
 
 	if oauthData.Provider == "github" {
-		user.GithubProviderId = oauthData.ProviderId
-		whereQuery = "email = ? AND github_provider_id = ?"
-		whereArgs = []any{oauthData.Email, oauthData.ProviderId}
+		data, err := ctrl.queries.GetUserByEmail(c.Context(), Email)
+
+		if err != nil {
+			fmt.Println("error fetching user by email:", err)
+		} else {
+			fmt.Println("user fetched by email:", data)
+		}
 	} else if oauthData.Provider == "google" {
-		user.GoogleProviderId = oauthData.ProviderId
-		whereQuery = "email = ? AND google_provider_id = ?"
-		whereArgs = []any{oauthData.Email, oauthData.ProviderId}
+		data, err := ctrl.queries.GetUserByEmail(c.Context(), Email)
+
+		if err != nil {
+			fmt.Println("error fetching user by email:", err)
+		} else {
+			fmt.Println("user fetched by email:", data)
+		}
 	} else {
 		return nil, fmt.Errorf("unsupported oauth provider")
 	}
 
-	err := db.DB.
-		Where(whereQuery, whereArgs...).
-		First(&user).Error
+	createdUser, err := ctrl.queries.CreateUser(
+		c.Context(),
+		db.CreateUserParams{
+			Username: Username,
+			Email:    Email,
+			Password: pgtype.Text{
+				Valid: false,
+			},
+			GithubProviderID: pgtype.Text{
+				Valid: false,
+			},
+			GoogleProviderID: pgtype.Text{
+				Valid: false,
+			},
+			Avatar: pgtype.Text{
+				String: Avatar,
+				Valid:  true,
+			},
+		},
+	)
 
-	if err == nil {
-		return &utils.UserJWT{
-			Id:       user.Id.String(),
-			Username: user.Username,
-		}, nil
-	}
-
-	user.Id = uuid.New()
-
-	if err := db.DB.Create(&user).Error; err != nil {
-		return nil, err
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			fmt.Println("user with this email already exists")
+		} else {
+			fmt.Println("database error:", err)
+		}
+	} else {
+		fmt.Println("created user:", createdUser)
 	}
 
 	return &utils.UserJWT{
-		Id:       user.Id.String(),
-		Username: user.Username,
+		Id:       "test",
+		Username: Username,
 	}, nil
 }
 
@@ -193,13 +243,38 @@ func LogoutUser(c *fiber.Ctx) error {
 	})
 }
 
-func GetProfile(c *fiber.Ctx) error {
+func (ctrl *Controller) GetProfile(c *fiber.Ctx) error {
 	usrData := c.Locals("user").(*utils.UserJWT)
-	fmt.Println("user data got:", usrData.Id)
 
-	fmt.Println("user data got:", usrData.Username)
+	userID, err := uuid.Parse(usrData.Id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid user id",
+		})
+	}
+
+	data, err := ctrl.queries.GetUserByID(
+		c.Context(),
+		pgtype.UUID{
+			Bytes: userID,
+			Valid: true,
+		},
+	)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"error": "user not found",
+		})
+	}
 
 	return c.Status(200).JSON(fiber.Map{
-		"message": "server is working btw",
+		"message": "profile fetched successfully",
+		"data":    data,
+	})
+}
+
+func (ctrl *Controller) TestRoute(c *fiber.Ctx) error {
+	return c.Status(200).JSON(fiber.Map{
+		"message": "user profile fetched successfully",
+		"data":    "ok",
 	})
 }

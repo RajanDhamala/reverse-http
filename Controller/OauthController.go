@@ -40,14 +40,14 @@ type GoogleUser struct {
 	VerifiedEmail bool   `json:"verified_email"`
 }
 
-func GithubLogin(c *fiber.Ctx) error {
+func (ctrl *Controller) GithubLogin(c *fiber.Ctx) error {
 	githubConfig := utils.GithubConfig()
 	url := githubConfig.AuthCodeURL("randomstate")
 	fmt.Println("authurl:", url)
 	return c.Redirect(url, fiber.StatusSeeOther)
 }
 
-func GithubCallback(c *fiber.Ctx) error {
+func (ctrl *Controller) GithubCallback(c *fiber.Ctx) error {
 	state := c.Query("state")
 	if state != "randomstate" {
 		return redirectWithError(c, "States don't match")
@@ -114,9 +114,12 @@ func GithubCallback(c *fiber.Ctx) error {
 		FullName:   githubUser.Name,
 		AvatarURL:  githubUser.AvatarURL,
 	}
-	jwtPaylod, error := OauthLogin(&oauthData)
-	if error != nil {
-		fmt.Print("user creation failed man")
+
+	jwtPaylod, err := ctrl.OauthLogin(&oauthData, c)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
 	NewAccessToken, err := utils.CreateAccessToken(jwtPaylod)
@@ -150,13 +153,13 @@ func GithubCallback(c *fiber.Ctx) error {
 	return redirectWithUserData(c, oauthData)
 }
 
-func GoogleLogin(c *fiber.Ctx) error {
+func (ctrl *Controller) GoogleLogin(c *fiber.Ctx) error {
 	googleConfig := utils.GoogleConfig()
 	url := googleConfig.AuthCodeURL("randomstate")
 	return c.Redirect(url, fiber.StatusSeeOther)
 }
 
-func GoogleCallback(c *fiber.Ctx) error {
+func (ctrl *Controller) GoogleCallback(c *fiber.Ctx) error {
 	state := c.Query("state")
 	if state != "randomstate" {
 		return redirectWithError(c, "States don't match")
@@ -200,9 +203,11 @@ func GoogleCallback(c *fiber.Ctx) error {
 		AvatarURL:  googleUser.Picture,
 	}
 
-	jwtPaylod, error := OauthLogin(&oauthData)
-	if error != nil {
-		fmt.Print("user creation failed man")
+	jwtPaylod, err := ctrl.OauthLogin(&oauthData, c)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
 	NewAccessToken, err := utils.CreateAccessToken(jwtPaylod)

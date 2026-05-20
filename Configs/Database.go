@@ -1,42 +1,31 @@
-package db
+package Database
 
 import (
-	"fmt"
-	"log"
+	"context"
+	"errors"
 	"os"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	// "reverse-http/Models"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var DB *gorm.DB
+var DbPool *pgxpool.Pool
 
-func InitDatabase() {
+func ConnectDB() (*pgxpool.Pool, error) {
 	dsn := os.Getenv("DATABASE_URL")
-
 	if dsn == "" {
-		log.Fatal("DATABASE_URL is not set")
+		return nil, errors.New("DATABASE_URL is not set")
 	}
 
-	fmt.Println("Using database:", dsn)
-	log.Println("Using Neon production database")
-
-	var err error
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
-		log.Fatal("Failed to connect to Postgres database:", err)
+		return nil, err
 	}
 
-	// err = DB.AutoMigrate(
-	// 	&models.User{},
-	// 	&models.AppConfig{},
-	// 	&models.OauthConfig{},
-	// 	&models.KeyValueStore{},
-	// )
-	// if err != nil {
-	// 	log.Fatal("Migration failed:", err)
-	// }
+	if err := pool.Ping(context.Background()); err != nil {
+		pool.Close()
+		return nil, err
+	}
 
-	log.Println("Postgres database connection established")
+	DbPool = pool
+	return pool, nil
 }

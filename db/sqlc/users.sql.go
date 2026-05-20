@@ -11,6 +11,56 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const chekidConfigExist = `-- name: ChekidConfigExist :one
+SELECT id from oauth_configs WHERE key=$1 and user_id=$2
+`
+
+type ChekidConfigExistParams struct {
+	Key    string      `json:"key"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) ChekidConfigExist(ctx context.Context, arg ChekidConfigExistParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, chekidConfigExist, arg.Key, arg.UserID)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const createAppConfig = `-- name: CreateAppConfig :one
+INSERT INTO app_configs (id,app_name ,endpoint,configs,user_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, app_name, endpoint, configs, user_id, created_at, updated_at, deleted_at
+`
+
+type CreateAppConfigParams struct {
+	ID       pgtype.UUID `json:"id"`
+	AppName  string      `json:"app_name"`
+	Endpoint string      `json:"endpoint"`
+	Configs  []byte      `json:"configs"`
+	UserID   pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) CreateAppConfig(ctx context.Context, arg CreateAppConfigParams) (AppConfig, error) {
+	row := q.db.QueryRow(ctx, createAppConfig,
+		arg.ID,
+		arg.AppName,
+		arg.Endpoint,
+		arg.Configs,
+		arg.UserID,
+	)
+	var i AppConfig
+	err := row.Scan(
+		&i.ID,
+		&i.AppName,
+		&i.Endpoint,
+		&i.Configs,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 
 INSERT INTO users (
@@ -19,11 +69,10 @@ INSERT INTO users (
     password,
     github_provider_id,
     google_provider_id,
-    type,
     avatar
 )
 VALUES (
-    $1, $2, $3, $4, $5, COALESCE($6, 'free'), $7
+    $1, $2, $3, $4, $5,$6
 )
 RETURNING id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at
 `
@@ -34,7 +83,6 @@ type CreateUserParams struct {
 	Password         pgtype.Text `json:"password"`
 	GithubProviderID pgtype.Text `json:"github_provider_id"`
 	GoogleProviderID pgtype.Text `json:"google_provider_id"`
-	Column6          interface{} `json:"column_6"`
 	Avatar           pgtype.Text `json:"avatar"`
 }
 
@@ -46,7 +94,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Password,
 		arg.GithubProviderID,
 		arg.GoogleProviderID,
-		arg.Column6,
 		arg.Avatar,
 	)
 	var i User
@@ -66,12 +113,154 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const creteOauthConfig = `-- name: CreteOauthConfig :one
+INSERT INTO oauth_configs (id,key,endpoint,user_id) VALUES($1,$2,$3,$4) RETURNING id, key, endpoint, user_id, created_at, updated_at, deleted_at
+`
+
+type CreteOauthConfigParams struct {
+	ID       pgtype.UUID `json:"id"`
+	Key      string      `json:"key"`
+	Endpoint string      `json:"endpoint"`
+	UserID   pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) CreteOauthConfig(ctx context.Context, arg CreteOauthConfigParams) (OauthConfig, error) {
+	row := q.db.QueryRow(ctx, creteOauthConfig,
+		arg.ID,
+		arg.Key,
+		arg.Endpoint,
+		arg.UserID,
+	)
+	var i OauthConfig
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Endpoint,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getAppConfigByID = `-- name: GetAppConfigByID :one
+SELECT id, app_name, endpoint, configs, user_id, created_at, updated_at, deleted_at FROM app_configs WHERE id = $1 AND user_id = $2
+`
+
+type GetAppConfigByIDParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetAppConfigByID(ctx context.Context, arg GetAppConfigByIDParams) (AppConfig, error) {
+	row := q.db.QueryRow(ctx, getAppConfigByID, arg.ID, arg.UserID)
+	var i AppConfig
+	err := row.Scan(
+		&i.ID,
+		&i.AppName,
+		&i.Endpoint,
+		&i.Configs,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getAppConfigs = `-- name: GetAppConfigs :many
+SELECT id, app_name, endpoint, configs, user_id, created_at, updated_at, deleted_at FROM app_configs WHERE user_id = $1 ORDER BY created_at DESC
+`
+
+func (q *Queries) GetAppConfigs(ctx context.Context, userID pgtype.UUID) ([]AppConfig, error) {
+	rows, err := q.db.Query(ctx, getAppConfigs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AppConfig
+	for rows.Next() {
+		var i AppConfig
+		if err := rows.Scan(
+			&i.ID,
+			&i.AppName,
+			&i.Endpoint,
+			&i.Configs,
+			&i.UserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getOauthConfigData = `-- name: GetOauthConfigData :one
+SELECT id, key, endpoint, user_id, created_at, updated_at, deleted_at from oauth_configs WHERE id=$1
+`
+
+func (q *Queries) GetOauthConfigData(ctx context.Context, id pgtype.UUID) (OauthConfig, error) {
+	row := q.db.QueryRow(ctx, getOauthConfigData, id)
+	var i OauthConfig
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Endpoint,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getOauthList = `-- name: GetOauthList :many
+SELECT id,key,endpoint,created_at,updated_at from oauth_configs where user_id=$1
+`
+
+type GetOauthListRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Key       string             `json:"key"`
+	Endpoint  string             `json:"endpoint"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetOauthList(ctx context.Context, userID pgtype.UUID) ([]GetOauthListRow, error) {
+	rows, err := q.db.Query(ctx, getOauthList, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetOauthListRow
+	for rows.Next() {
+		var i GetOauthListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.Endpoint,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at
-FROM users
-WHERE email = $1
-AND deleted_at IS NULL
-LIMIT 1
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -94,11 +283,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByGithubProviderID = `-- name: GetUserByGithubProviderID :one
-SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at
-FROM users
-WHERE github_provider_id = $1
-AND deleted_at IS NULL
-LIMIT 1
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at FROM users WHERE github_provider_id = $1
 `
 
 func (q *Queries) GetUserByGithubProviderID(ctx context.Context, githubProviderID pgtype.Text) (User, error) {
@@ -120,12 +305,36 @@ func (q *Queries) GetUserByGithubProviderID(ctx context.Context, githubProviderI
 	return i, err
 }
 
+const getUserByGithubProviderIDAndEmail = `-- name: GetUserByGithubProviderIDAndEmail :one
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at from users where github_provider_id = $1 AND email = $2
+`
+
+type GetUserByGithubProviderIDAndEmailParams struct {
+	GithubProviderID pgtype.Text `json:"github_provider_id"`
+	Email            string      `json:"email"`
+}
+
+func (q *Queries) GetUserByGithubProviderIDAndEmail(ctx context.Context, arg GetUserByGithubProviderIDAndEmailParams) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByGithubProviderIDAndEmail, arg.GithubProviderID, arg.Email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Password,
+		&i.GithubProviderID,
+		&i.GoogleProviderID,
+		&i.Type,
+		&i.Avatar,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const getUserByGoogleProviderID = `-- name: GetUserByGoogleProviderID :one
-SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at
-FROM users
-WHERE google_provider_id = $1
-AND deleted_at IS NULL
-LIMIT 1
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at FROM users WHERE google_provider_id = $1
 `
 
 func (q *Queries) GetUserByGoogleProviderID(ctx context.Context, googleProviderID pgtype.Text) (User, error) {
@@ -148,15 +357,39 @@ func (q *Queries) GetUserByGoogleProviderID(ctx context.Context, googleProviderI
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at
-FROM users
-WHERE id = $1
-AND deleted_at IS NULL
-LIMIT 1
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Password,
+		&i.GithubProviderID,
+		&i.GoogleProviderID,
+		&i.Type,
+		&i.Avatar,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getUserbyGoogleProviderIDAndEmail = `-- name: GetUserbyGoogleProviderIDAndEmail :one
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at from users where google_provider_id = $1 AND email = $2
+`
+
+type GetUserbyGoogleProviderIDAndEmailParams struct {
+	GoogleProviderID pgtype.Text `json:"google_provider_id"`
+	Email            string      `json:"email"`
+}
+
+func (q *Queries) GetUserbyGoogleProviderIDAndEmail(ctx context.Context, arg GetUserbyGoogleProviderIDAndEmailParams) (User, error) {
+	row := q.db.QueryRow(ctx, getUserbyGoogleProviderIDAndEmail, arg.GoogleProviderID, arg.Email)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -213,66 +446,73 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
-const softDeleteUser = `-- name: SoftDeleteUser :exec
-UPDATE users
-SET deleted_at = now()
-WHERE id = $1
-AND deleted_at IS NULL
+const updateAppConfig = `-- name: UpdateAppConfig :one
+UPDATE app_configs SET
+    app_name = COALESCE($3, app_name),
+    endpoint  = COALESCE($4, endpoint),
+    configs   = COALESCE($5, configs)
+WHERE id = $1 AND user_id = $2
+RETURNING id, app_name, endpoint, configs, user_id, created_at, updated_at, deleted_at
 `
 
-func (q *Queries) SoftDeleteUser(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, softDeleteUser, id)
-	return err
+type UpdateAppConfigParams struct {
+	ID       pgtype.UUID `json:"id"`
+	UserID   pgtype.UUID `json:"user_id"`
+	AppName  string      `json:"app_name"`
+	Endpoint string      `json:"endpoint"`
+	Configs  []byte      `json:"configs"`
 }
 
-const updateUser = `-- name: UpdateUser :one
-UPDATE users
-SET
-    username = COALESCE($2, username),
-    email = COALESCE($3, email),
-    password = COALESCE($4, password),
-    github_provider_id = COALESCE($5, github_provider_id),
-    google_provider_id = COALESCE($6, google_provider_id),
-    type = COALESCE($7, type),
-    avatar = COALESCE($8, avatar),
-    updated_at = now()
-WHERE id = $1
-AND deleted_at IS NULL
-RETURNING id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at
-`
-
-type UpdateUserParams struct {
-	ID               pgtype.UUID `json:"id"`
-	Username         string      `json:"username"`
-	Email            string      `json:"email"`
-	Password         pgtype.Text `json:"password"`
-	GithubProviderID pgtype.Text `json:"github_provider_id"`
-	GoogleProviderID pgtype.Text `json:"google_provider_id"`
-	Type             string      `json:"type"`
-	Avatar           pgtype.Text `json:"avatar"`
-}
-
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUser,
+func (q *Queries) UpdateAppConfig(ctx context.Context, arg UpdateAppConfigParams) (AppConfig, error) {
+	row := q.db.QueryRow(ctx, updateAppConfig,
 		arg.ID,
-		arg.Username,
-		arg.Email,
-		arg.Password,
-		arg.GithubProviderID,
-		arg.GoogleProviderID,
-		arg.Type,
-		arg.Avatar,
+		arg.UserID,
+		arg.AppName,
+		arg.Endpoint,
+		arg.Configs,
 	)
-	var i User
+	var i AppConfig
 	err := row.Scan(
 		&i.ID,
-		&i.Username,
-		&i.Email,
-		&i.Password,
-		&i.GithubProviderID,
-		&i.GoogleProviderID,
-		&i.Type,
-		&i.Avatar,
+		&i.AppName,
+		&i.Endpoint,
+		&i.Configs,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const updateOauthConfig = `-- name: UpdateOauthConfig :one
+UPDATE oauth_configs SET 
+    endpoint = COALESCE($3, endpoint),
+    key = COALESCE($4, key)
+WHERE id=$1 AND user_id=$2 
+RETURNING id, key, endpoint, user_id, created_at, updated_at, deleted_at
+`
+
+type UpdateOauthConfigParams struct {
+	ID       pgtype.UUID `json:"id"`
+	UserID   pgtype.UUID `json:"user_id"`
+	Endpoint string      `json:"endpoint"`
+	Key      string      `json:"key"`
+}
+
+func (q *Queries) UpdateOauthConfig(ctx context.Context, arg UpdateOauthConfigParams) (OauthConfig, error) {
+	row := q.db.QueryRow(ctx, updateOauthConfig,
+		arg.ID,
+		arg.UserID,
+		arg.Endpoint,
+		arg.Key,
+	)
+	var i OauthConfig
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Endpoint,
+		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,

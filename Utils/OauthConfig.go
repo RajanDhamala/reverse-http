@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -48,8 +47,6 @@ func GithubConfig() oauth2.Config {
 	clientId := os.Getenv("GITHUB_CLIENT_ID")
 	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
 	redirectURL := os.Getenv("GITHUB_REDIRECT_URI")
-
-	fmt.Println("redirectURL:", redirectURL)
 
 	if redirectURL == "" {
 		redirectURL = "http://192.168.18.26:3000/oauth/github/callback"

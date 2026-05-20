@@ -19,16 +19,6 @@ type AppConfig struct {
 	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
-type KeyValueStore struct {
-	ID          pgtype.UUID        `json:"id"`
-	Key         string             `json:"key"`
-	Value       string             `json:"value"`
-	AppConfigID pgtype.UUID        `json:"app_config_id"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
-}
-
 type OauthConfig struct {
 	ID        pgtype.UUID        `json:"id"`
 	Key       string             `json:"key"`

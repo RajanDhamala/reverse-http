@@ -28,18 +28,6 @@ CREATE TABLE app_configs (
 
 CREATE INDEX idx_app_configs_user_id ON app_configs(user_id);
 
-CREATE TABLE key_value_stores (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    key TEXT NOT NULL,
-    value TEXT NOT NULL,
-    app_config_id UUID NOT NULL REFERENCES app_configs(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ
-);
-
-CREATE INDEX idx_key_value_stores_app_config_id ON key_value_stores(app_config_id);
-
 CREATE TABLE oauth_configs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     key TEXT NOT NULL UNIQUE,
@@ -54,7 +42,6 @@ CREATE INDEX idx_oauth_configs_user_id ON oauth_configs(user_id);
 
 -- +goose Down
 DROP TABLE IF EXISTS oauth_configs;
-DROP TABLE IF EXISTS key_value_stores;
 DROP TABLE IF EXISTS app_configs;
 DROP TABLE IF EXISTS users;
 DROP EXTENSION IF EXISTS "uuid-ossp"

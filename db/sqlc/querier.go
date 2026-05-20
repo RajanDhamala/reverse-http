@@ -11,15 +11,24 @@ import (
 )
 
 type Querier interface {
+	ChekidConfigExist(ctx context.Context, arg ChekidConfigExistParams) (pgtype.UUID, error)
+	CreateAppConfig(ctx context.Context, arg CreateAppConfigParams) (AppConfig, error)
 	// internal/db/queries/users.sql
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	CreteOauthConfig(ctx context.Context, arg CreteOauthConfigParams) (OauthConfig, error)
+	GetAppConfigByID(ctx context.Context, arg GetAppConfigByIDParams) (AppConfig, error)
+	GetAppConfigs(ctx context.Context, userID pgtype.UUID) ([]AppConfig, error)
+	GetOauthConfigData(ctx context.Context, id pgtype.UUID) (OauthConfig, error)
+	GetOauthList(ctx context.Context, userID pgtype.UUID) ([]GetOauthListRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByGithubProviderID(ctx context.Context, githubProviderID pgtype.Text) (User, error)
+	GetUserByGithubProviderIDAndEmail(ctx context.Context, arg GetUserByGithubProviderIDAndEmailParams) (User, error)
 	GetUserByGoogleProviderID(ctx context.Context, googleProviderID pgtype.Text) (User, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
+	GetUserbyGoogleProviderIDAndEmail(ctx context.Context, arg GetUserbyGoogleProviderIDAndEmailParams) (User, error)
 	ListUsers(ctx context.Context) ([]User, error)
-	SoftDeleteUser(ctx context.Context, id pgtype.UUID) error
-	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
+	UpdateAppConfig(ctx context.Context, arg UpdateAppConfigParams) (AppConfig, error)
+	UpdateOauthConfig(ctx context.Context, arg UpdateOauthConfigParams) (OauthConfig, error)
 }
 
 var _ Querier = (*Queries)(nil)

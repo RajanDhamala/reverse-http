@@ -6,9 +6,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/proxy"
 	"github.com/google/uuid"
-	"reverse-http/Configs"
-	"reverse-http/Models"
 	"reverse-http/Utils"
+	"reverse-http/db/sqlc"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ReverseHttpReq struct {
@@ -22,10 +23,8 @@ type UpdateConfigReq struct {
 	Endpoint string    `json:"endpoint"`
 }
 
-func CreateReverseRoute(c *fiber.Ctx) error {
+func (ctrl *Controller) CreateReverseRoute(c *fiber.Ctx) error {
 	data := ReverseHttpReq{}
-
-	usrData := c.Locals("user").(*utils.UserJWT)
 
 	if err := c.BodyParser(&data); err != nil {
 		fmt.Println("error while parsing body")
@@ -36,68 +35,65 @@ func CreateReverseRoute(c *fiber.Ctx) error {
 
 	paramId := uuid.New()
 
-	userId, err := uuid.Parse(usrData.Id)
+	usrData := c.Locals("user").(*utils.UserJWT)
+	userId, err := utils.StrToPgUUID(usrData.Id)
 	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	_, errs := ctrl.queries.ChekidConfigExist(c.Context(), db.ChekidConfigExistParams{
+		Key:    data.Name,
+		UserID: userId,
+	})
+
+	if errs == nil {
 		return c.Status(400).JSON(fiber.Map{
-			"error": "invalid user id",
+			"error": "key already exist for u",
 		})
 	}
 
-	reverseData := models.OauthConfig{
-		Id:       paramId,
-		Key:      data.Name,
-		Endpoint: data.Endpoint,
-		UserId:   userId,
-	}
-
-	error := db.DB.
-		Where("Id=? AND key=?", paramId, data.Name).
-		Select("id key endpoint userId").
-		Find(&reverseData).Error
-
-	if error == nil {
-		fmt.Println("endoint and config already exists")
+	payload, err := ctrl.queries.CreateAppConfig(c.Context(), db.CreateAppConfigParams{
+		ID: pgtype.UUID{
+			Bytes: paramId,
+			Valid: true,
+		},
+		Endpoint: data.Name,
+		UserID:   userId,
+	})
+	if err != nil {
+		fmt.Println("error while calling db")
 		return c.Status(500).JSON(fiber.Map{
-			"error": "the endpoint already exist",
-		})
-	}
-
-	errs := db.DB.Create(&reverseData).Error
-	if errs != nil {
-		fmt.Println("failed to create endpoint")
-		return c.Status(500).JSON(fiber.Map{
-			"error": "failed to create endpoint",
+			"error": "failed to create the endpoint",
 		})
 	}
 
 	return c.Status(200).JSON(fiber.Map{
 		"message": "endpoint created succesfully",
-		"data":    reverseData,
+		"data":    payload,
 	})
 }
 
-func RedirectRequest(c *fiber.Ctx) error {
+func (ctrl *Controller) RedirectRequest(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "include routeId"})
 	}
 
-	uId, err := uuid.Parse(id)
+	uId, err := utils.StrToPgUUID(id)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
 	}
 
-	data := models.OauthConfig{}
-	if err := db.DB.Where("id = ?", uId).First(&data).Error; err != nil {
+	data, err := ctrl.queries.GetOauthConfigData(c.Context(), uId)
+	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "invalid key"})
 	}
-
 	return proxy.Do(c, data.Endpoint)
 }
 
-func GetRedirectList(c *fiber.Ctx) error {
+func (ctrl *Controller) GetRedirectList(c *fiber.Ctx) error {
 	usrData := c.Locals("user").(*utils.UserJWT)
-	userId, err := uuid.Parse(usrData.Id)
+	userId, err := utils.StrToPgUUID(usrData.Id)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "invalid user id",
@@ -110,15 +106,9 @@ func GetRedirectList(c *fiber.Ctx) error {
 		Endpoint string
 	}
 
-	var data []OauthConfigLite
+	data, errr := ctrl.queries.GetOauthList(c.Context(), userId)
 
-	error := db.DB.
-		Table("oauth_configs").
-		Where("user_id = ?", userId).
-		Select("id, key, endpoint").
-		Find(&data).Error
-
-	if error != nil {
+	if errr != nil {
 		fmt.Println("error while calling db")
 		return c.Status(400).JSON(fiber.Map{
 			"error": "no reverse endpoint set",
@@ -127,40 +117,34 @@ func GetRedirectList(c *fiber.Ctx) error {
 
 	return c.Status(200).JSON(fiber.Map{
 		"data":    data,
-		"message": "succesfully fetched reverse-http data",
+		"message": "succesfully fetched reverse-http list",
 	})
 }
 
-func UpdateConfig(c *fiber.Ctx) error {
+func (ctrl *Controller) UpdateConfig(c *fiber.Ctx) error {
 	usrData := c.Locals("user").(*utils.UserJWT)
-	data := UpdateConfigReq{}
 
-	if err := c.BodyParser(&data); err != nil {
-		fmt.Println("failed to parse the body")
-		return c.Status(400).JSON(fiber.Map{
-			"error": "failed to parse the body",
-		})
+	var req UpdateConfigReq
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "failed to parse the body"})
 	}
 
-	uId, err := uuid.Parse(usrData.Id)
+	userId, err := utils.StrToPgUUID(usrData.Id)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"error": "invalid user id",
-		})
+		return c.Status(400).JSON(fiber.Map{"error": "invalid user id"})
 	}
 
-	errors := db.DB.
-		Model(&models.OauthConfig{}).
-		Where("id = ? AND user_id = ?", data.Id, uId).
-		Updates(map[string]interface{}{
-			"key":      data.Key,
-			"endpoint": data.Endpoint,
-		}).Error
-	if errors != nil {
-		fmt.Println("failed to update the db man")
-	}
+	cfgId := pgtype.UUID{Bytes: req.Id, Valid: true}
 
-	return c.Status(200).JSON(fiber.Map{
-		"message": "succesfully updated the config",
+	_, err = ctrl.queries.UpdateOauthConfig(c.Context(), db.UpdateOauthConfigParams{
+		ID:       cfgId,
+		UserID:   userId,
+		Endpoint: req.Endpoint,
+		Key:      req.Key,
 	})
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "failed to update config"})
+	}
+
+	return c.Status(200).JSON(fiber.Map{"message": "successfully updated the config"})
 }

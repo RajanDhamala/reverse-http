@@ -7,41 +7,24 @@ INSERT INTO users (
     password,
     github_provider_id,
     google_provider_id,
-    type,
     avatar
 )
 VALUES (
-    $1, $2, $3, $4, $5, COALESCE($6, 'free'), $7
+    $1, $2, $3, $4, $5,$6
 )
 RETURNING *;
 
 -- name: GetUserByID :one
-SELECT *
-FROM users
-WHERE id = $1
-AND deleted_at IS NULL
-LIMIT 1;
+SELECT * FROM users WHERE id = $1;
 
 -- name: GetUserByEmail :one
-SELECT *
-FROM users
-WHERE email = $1
-AND deleted_at IS NULL
-LIMIT 1;
+SELECT * FROM users WHERE email = $1;
 
 -- name: GetUserByGithubProviderID :one
-SELECT *
-FROM users
-WHERE github_provider_id = $1
-AND deleted_at IS NULL
-LIMIT 1;
+SELECT * FROM users WHERE github_provider_id = $1;
 
 -- name: GetUserByGoogleProviderID :one
-SELECT *
-FROM users
-WHERE google_provider_id = $1
-AND deleted_at IS NULL
-LIMIT 1;
+SELECT * FROM users WHERE google_provider_id = $1;
 
 -- name: ListUsers :many
 SELECT *
@@ -49,23 +32,46 @@ FROM users
 WHERE deleted_at IS NULL
 ORDER BY created_at DESC;
 
--- name: UpdateUser :one
-UPDATE users
-SET
-    username = COALESCE($2, username),
-    email = COALESCE($3, email),
-    password = COALESCE($4, password),
-    github_provider_id = COALESCE($5, github_provider_id),
-    google_provider_id = COALESCE($6, google_provider_id),
-    type = COALESCE($7, type),
-    avatar = COALESCE($8, avatar),
-    updated_at = now()
-WHERE id = $1
-AND deleted_at IS NULL
+-- name: GetUserByGithubProviderIDAndEmail :one
+SELECT * from users where github_provider_id = $1 AND email = $2;
+
+-- name: GetUserbyGoogleProviderIDAndEmail :one
+SELECT * from users where google_provider_id = $1 AND email = $2;
+
+-- name: CreateAppConfig :one
+INSERT INTO app_configs (id,app_name ,endpoint,configs,user_id) VALUES ($1, $2, $3, $4, $5) RETURNING *;
+
+-- name: GetAppConfigs :many
+SELECT * FROM app_configs WHERE user_id = $1 ORDER BY created_at DESC;
+
+-- name: GetAppConfigByID :one
+SELECT * FROM app_configs WHERE id = $1 AND user_id = $2;
+
+-- name: UpdateAppConfig :one
+UPDATE app_configs SET
+    app_name = COALESCE($3, app_name),
+    endpoint  = COALESCE($4, endpoint),
+    configs   = COALESCE($5, configs)
+WHERE id = $1 AND user_id = $2
 RETURNING *;
 
--- name: SoftDeleteUser :exec
-UPDATE users
-SET deleted_at = now()
-WHERE id = $1
-AND deleted_at IS NULL;
+-- name: CreteOauthConfig :one
+INSERT INTO oauth_configs (id,key,endpoint,user_id) VALUES($1,$2,$3,$4) RETURNING *;
+
+-- name: GetOauthConfigData :one
+SELECT * from oauth_configs WHERE id=$1 ;
+
+-- name: GetOauthList :many
+SELECT id,key,endpoint,created_at,updated_at from oauth_configs where user_id=$1;
+
+-- name: ChekidConfigExist :one
+SELECT id from oauth_configs WHERE key=$1 and user_id=$2;
+
+-- name: UpdateOauthConfig :one
+UPDATE oauth_configs SET 
+    endpoint = COALESCE($3, endpoint),
+    key = COALESCE($4, key)
+WHERE id=$1 AND user_id=$2 
+RETURNING *;
+
+
