@@ -28,7 +28,7 @@ func (q *Queries) ChekidConfigExist(ctx context.Context, arg ChekidConfigExistPa
 }
 
 const createAppConfig = `-- name: CreateAppConfig :one
-INSERT INTO app_configs (id,app_name ,endpoint,configs,user_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, app_name, endpoint, configs, user_id, created_at, updated_at, deleted_at
+INSERT INTO app_configs (id,app_name ,endpoint,configs,user_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, app_name, endpoint, configs, user_id, created_at, updated_at
 `
 
 type CreateAppConfigParams struct {
@@ -56,7 +56,6 @@ func (q *Queries) CreateAppConfig(ctx context.Context, arg CreateAppConfigParams
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -74,7 +73,7 @@ INSERT INTO users (
 VALUES (
     $1, $2, $3, $4, $5,$6
 )
-RETURNING id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at
+RETURNING id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -108,13 +107,12 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Avatar,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const creteOauthConfig = `-- name: CreteOauthConfig :one
-INSERT INTO oauth_configs (id,key,endpoint,user_id) VALUES($1,$2,$3,$4) RETURNING id, key, endpoint, user_id, created_at, updated_at, deleted_at
+INSERT INTO oauth_configs (id,key,endpoint,user_id) VALUES($1,$2,$3,$4) RETURNING id, key, endpoint, user_id, created_at, updated_at
 `
 
 type CreteOauthConfigParams struct {
@@ -139,13 +137,12 @@ func (q *Queries) CreteOauthConfig(ctx context.Context, arg CreteOauthConfigPara
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getAppConfigByID = `-- name: GetAppConfigByID :one
-SELECT id, app_name, endpoint, configs, user_id, created_at, updated_at, deleted_at FROM app_configs WHERE id = $1 AND user_id = $2
+SELECT id, app_name, endpoint, configs, user_id, created_at, updated_at FROM app_configs WHERE id = $1 AND user_id = $2
 `
 
 type GetAppConfigByIDParams struct {
@@ -164,13 +161,12 @@ func (q *Queries) GetAppConfigByID(ctx context.Context, arg GetAppConfigByIDPara
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getAppConfigs = `-- name: GetAppConfigs :many
-SELECT id, app_name, endpoint, configs, user_id, created_at, updated_at, deleted_at FROM app_configs WHERE user_id = $1 ORDER BY created_at DESC
+SELECT id, app_name, endpoint, configs, user_id, created_at, updated_at FROM app_configs WHERE user_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) GetAppConfigs(ctx context.Context, userID pgtype.UUID) ([]AppConfig, error) {
@@ -190,7 +186,6 @@ func (q *Queries) GetAppConfigs(ctx context.Context, userID pgtype.UUID) ([]AppC
 			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -203,7 +198,7 @@ func (q *Queries) GetAppConfigs(ctx context.Context, userID pgtype.UUID) ([]AppC
 }
 
 const getOauthConfigData = `-- name: GetOauthConfigData :one
-SELECT id, key, endpoint, user_id, created_at, updated_at, deleted_at from oauth_configs WHERE id=$1
+SELECT id, key, endpoint, user_id, created_at, updated_at from oauth_configs WHERE id=$1
 `
 
 func (q *Queries) GetOauthConfigData(ctx context.Context, id pgtype.UUID) (OauthConfig, error) {
@@ -216,7 +211,6 @@ func (q *Queries) GetOauthConfigData(ctx context.Context, id pgtype.UUID) (Oauth
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -260,7 +254,7 @@ func (q *Queries) GetOauthList(ctx context.Context, userID pgtype.UUID) ([]GetOa
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at FROM users WHERE email = $1
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -277,13 +271,12 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Avatar,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserByGithubProviderID = `-- name: GetUserByGithubProviderID :one
-SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at FROM users WHERE github_provider_id = $1
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at FROM users WHERE github_provider_id = $1
 `
 
 func (q *Queries) GetUserByGithubProviderID(ctx context.Context, githubProviderID pgtype.Text) (User, error) {
@@ -300,13 +293,12 @@ func (q *Queries) GetUserByGithubProviderID(ctx context.Context, githubProviderI
 		&i.Avatar,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserByGithubProviderIDAndEmail = `-- name: GetUserByGithubProviderIDAndEmail :one
-SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at from users where github_provider_id = $1 AND email = $2
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at from users where github_provider_id = $1 AND email = $2
 `
 
 type GetUserByGithubProviderIDAndEmailParams struct {
@@ -328,13 +320,12 @@ func (q *Queries) GetUserByGithubProviderIDAndEmail(ctx context.Context, arg Get
 		&i.Avatar,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserByGoogleProviderID = `-- name: GetUserByGoogleProviderID :one
-SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at FROM users WHERE google_provider_id = $1
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at FROM users WHERE google_provider_id = $1
 `
 
 func (q *Queries) GetUserByGoogleProviderID(ctx context.Context, googleProviderID pgtype.Text) (User, error) {
@@ -351,13 +342,12 @@ func (q *Queries) GetUserByGoogleProviderID(ctx context.Context, googleProviderI
 		&i.Avatar,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at FROM users WHERE id = $1
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -374,13 +364,12 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.Avatar,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserbyGoogleProviderIDAndEmail = `-- name: GetUserbyGoogleProviderIDAndEmail :one
-SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at from users where google_provider_id = $1 AND email = $2
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at from users where google_provider_id = $1 AND email = $2
 `
 
 type GetUserbyGoogleProviderIDAndEmailParams struct {
@@ -402,15 +391,13 @@ func (q *Queries) GetUserbyGoogleProviderIDAndEmail(ctx context.Context, arg Get
 		&i.Avatar,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at, deleted_at
+SELECT id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at
 FROM users
-WHERE deleted_at IS NULL
 ORDER BY created_at DESC
 `
 
@@ -434,7 +421,6 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Avatar,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -452,7 +438,7 @@ UPDATE app_configs SET
     endpoint  = COALESCE($4, endpoint),
     configs   = COALESCE($5, configs)
 WHERE id = $1 AND user_id = $2
-RETURNING id, app_name, endpoint, configs, user_id, created_at, updated_at, deleted_at
+RETURNING id, app_name, endpoint, configs, user_id, created_at, updated_at
 `
 
 type UpdateAppConfigParams struct {
@@ -480,7 +466,6 @@ func (q *Queries) UpdateAppConfig(ctx context.Context, arg UpdateAppConfigParams
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -490,7 +475,7 @@ UPDATE oauth_configs SET
     endpoint = COALESCE($3, endpoint),
     key = COALESCE($4, key)
 WHERE id=$1 AND user_id=$2 
-RETURNING id, key, endpoint, user_id, created_at, updated_at, deleted_at
+RETURNING id, key, endpoint, user_id, created_at, updated_at
 `
 
 type UpdateOauthConfigParams struct {
@@ -515,7 +500,6 @@ func (q *Queries) UpdateOauthConfig(ctx context.Context, arg UpdateOauthConfigPa
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }

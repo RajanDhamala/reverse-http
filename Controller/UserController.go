@@ -208,7 +208,7 @@ func (ctrl *Controller) OauthLogin(oauthData *OAuthUserData, c *fiber.Ctx) (*uti
 	}
 
 	return &utils.UserJWT{
-		Id:       "test",
+		Id:       createdUser.ID.String(),
 		Username: Username,
 	}, nil
 }

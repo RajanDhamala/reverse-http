@@ -1,6 +1,5 @@
 -- +goose Up
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username TEXT NOT NULL,
@@ -11,8 +10,7 @@ CREATE TABLE users (
     type TEXT NOT NULL DEFAULT 'free',
     avatar TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE app_configs (
@@ -22,8 +20,7 @@ CREATE TABLE app_configs (
     configs JSONB NOT NULL DEFAULT '{}'::jsonb,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_app_configs_user_id ON app_configs(user_id);
@@ -34,14 +31,13 @@ CREATE TABLE oauth_configs (
     endpoint TEXT NOT NULL,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_oauth_configs_user_id ON oauth_configs(user_id);
 
 -- +goose Down
-DROP TABLE IF EXISTS oauth_configs;
-DROP TABLE IF EXISTS app_configs;
-DROP TABLE IF EXISTS users;
-DROP EXTENSION IF EXISTS "uuid-ossp"
+DROP TABLE IF EXISTS oauth_configs CASCADE;
+DROP TABLE IF EXISTS app_configs CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP EXTENSION IF EXISTS "uuid-ossp" CASCADE;

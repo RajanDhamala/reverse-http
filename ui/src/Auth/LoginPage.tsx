@@ -17,11 +17,11 @@ const LoginPage = () => {
   };
 
   const googleOauth = async () => {
-    window.location.href = "http://localhost:3000/oauth/google/login";
+    window.location.href = "http://localhost:3000/oauth/google";
   };
 
   const githubOauth = async () => {
-    window.location.href = "http://localhost:3000/oauth/github/login";
+    window.location.href = "http://localhost:3000/oauth/github";
   };
 
   return (

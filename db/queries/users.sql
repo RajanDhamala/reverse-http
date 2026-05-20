@@ -29,7 +29,6 @@ SELECT * FROM users WHERE google_provider_id = $1;
 -- name: ListUsers :many
 SELECT *
 FROM users
-WHERE deleted_at IS NULL
 ORDER BY created_at DESC;
 
 -- name: GetUserByGithubProviderIDAndEmail :one

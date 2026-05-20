@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"time"
 
 	"reverse-http/Utils"
@@ -14,6 +15,7 @@ func AuthUser(c *fiber.Ctx) error {
 		data, err := utils.VerifyAccessToken(accessToken)
 		if err == nil {
 			c.Locals("user", data)
+			fmt.Println("Access token valid for user:", data)
 			return c.Next()
 		}
 	}

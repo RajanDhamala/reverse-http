@@ -16,7 +16,6 @@ type AppConfig struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type OauthConfig struct {
@@ -26,7 +25,6 @@ type OauthConfig struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type User struct {
@@ -40,5 +38,4 @@ type User struct {
 	Avatar           pgtype.Text        `json:"avatar"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
 }
