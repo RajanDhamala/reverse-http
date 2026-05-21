@@ -2,6 +2,7 @@
 
 -- name: CreateUser :one
 INSERT INTO users (
+    id,
     username,
     email,
     password,
@@ -10,7 +11,7 @@ INSERT INTO users (
     avatar
 )
 VALUES (
-    $1, $2, $3, $4, $5,$6
+    $1, $2, $3, $4, $5,$6,$7
 )
 RETURNING *;
 
@@ -72,5 +73,9 @@ UPDATE oauth_configs SET
     key = COALESCE($4, key)
 WHERE id=$1 AND user_id=$2 
 RETURNING *;
+
+
+-- name: DeleteOauthConfig :exec
+DELETE FROM oauth_configs WHERE id=$1 AND user_id=$2;
 
 

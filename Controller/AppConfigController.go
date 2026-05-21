@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -86,6 +87,16 @@ func (ctrl *Controller) GetAppConfig(c *fiber.Ctx) error {
 	return c.Status(200).JSON(fiber.Map{"data": data})
 }
 
+type AppResponse struct {
+	ID        string         `json:"id"`
+	AppName   string         `json:"app_name"`
+	Endpoint  string         `json:"endpoint"`
+	Configs   map[string]any `json:"configs"`
+	UserID    string         `json:"user_id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+}
+
 func (ctrl *Controller) GetOwnerConfigs(c *fiber.Ctx) error {
 	usrData := c.Locals("user").(*utils.UserJWT)
 
@@ -94,13 +105,39 @@ func (ctrl *Controller) GetOwnerConfigs(c *fiber.Ctx) error {
 	data, err := ctrl.queries.GetAppConfigs(c.Context(), uId)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
-			"error": "no app config set ",
+			"error": "no app config set",
 		})
+	}
+
+	var responses []AppResponse
+
+	for _, app := range data {
+
+		var config map[string]any
+
+		err := json.Unmarshal(app.Configs, &config)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": "failed to parse configs",
+			})
+		}
+
+		response := AppResponse{
+			ID:        app.ID.String(),
+			AppName:   app.AppName,
+			Endpoint:  app.Endpoint,
+			Configs:   config,
+			UserID:    app.UserID.String(),
+			CreatedAt: app.CreatedAt.Time,
+			UpdatedAt: app.UpdatedAt.Time,
+		}
+
+		responses = append(responses, response)
 	}
 
 	return c.Status(200).JSON(fiber.Map{
 		"message": "succfully retrived app config",
-		"data":    data,
+		"data":    responses,
 	})
 }
 
@@ -108,6 +145,7 @@ type EditConfigReq struct {
 	AppName  string         `json:"app_name"`
 	Endpoint string         `json:"endpoint"`
 	Configs  datatypes.JSON `json:"configs"`
+	Id       string         `json:"id"`
 }
 
 func (ctrl *Controller) EditOwnerConfig(c *fiber.Ctx) error {
@@ -117,14 +155,13 @@ func (ctrl *Controller) EditOwnerConfig(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid user id"})
 	}
 
-	cfgId, err := utils.StrToPgUUID(c.Params("id"))
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid config id"})
-	}
-
 	var req EditConfigReq
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	cfgId, err := utils.StrToPgUUID(req.Id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid config id"})
 	}
 
 	appName := pgtype.Text{}
@@ -154,4 +191,27 @@ func (ctrl *Controller) EditOwnerConfig(c *fiber.Ctx) error {
 	}
 
 	return c.Status(200).JSON(fiber.Map{"message": "successfully updated app config"})
+}
+
+func (ctrl *Controller) DeleteAppConfig(c *fiber.Ctx) error {
+	usrData := c.Locals("user").(*utils.UserJWT)
+	userId, err := utils.StrToPgUUID(usrData.Id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	cfgId, err := utils.StrToPgUUID(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid config id"})
+	}
+
+	errs := ctrl.queries.DeleteOauthConfig(c.Context(), db.DeleteOauthConfigParams{
+		ID:     cfgId,
+		UserID: userId,
+	})
+	if errs != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "failed to delete config"})
+	}
+
+	return c.Status(200).JSON(fiber.Map{"message": "successfully deleted app config"})
 }

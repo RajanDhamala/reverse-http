@@ -63,6 +63,7 @@ func (q *Queries) CreateAppConfig(ctx context.Context, arg CreateAppConfigParams
 const createUser = `-- name: CreateUser :one
 
 INSERT INTO users (
+    id,
     username,
     email,
     password,
@@ -71,12 +72,13 @@ INSERT INTO users (
     avatar
 )
 VALUES (
-    $1, $2, $3, $4, $5,$6
+    $1, $2, $3, $4, $5,$6,$7
 )
 RETURNING id, username, email, password, github_provider_id, google_provider_id, type, avatar, created_at, updated_at
 `
 
 type CreateUserParams struct {
+	ID               pgtype.UUID `json:"id"`
 	Username         string      `json:"username"`
 	Email            string      `json:"email"`
 	Password         pgtype.Text `json:"password"`
@@ -88,6 +90,7 @@ type CreateUserParams struct {
 // internal/db/queries/users.sql
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRow(ctx, createUser,
+		arg.ID,
 		arg.Username,
 		arg.Email,
 		arg.Password,
@@ -139,6 +142,20 @@ func (q *Queries) CreteOauthConfig(ctx context.Context, arg CreteOauthConfigPara
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const deleteOauthConfig = `-- name: DeleteOauthConfig :exec
+DELETE FROM oauth_configs WHERE id=$1 AND user_id=$2
+`
+
+type DeleteOauthConfigParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeleteOauthConfig(ctx context.Context, arg DeleteOauthConfigParams) error {
+	_, err := q.db.Exec(ctx, deleteOauthConfig, arg.ID, arg.UserID)
+	return err
 }
 
 const getAppConfigByID = `-- name: GetAppConfigByID :one

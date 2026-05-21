@@ -36,10 +36,14 @@ func (ctrl *Controller) RegisterUser(c *fiber.Ctx) error {
 			"error": "internal server error",
 		})
 	}
-
+	usrid := uuid.New()
 	createdUser, err := ctrl.queries.CreateUser(
 		c.Context(),
 		db.CreateUserParams{
+			ID: pgtype.UUID{
+				Bytes: usrid,
+				Valid: true,
+			},
 			Username: req.Username,
 			Email:    req.Email,
 			Password: pgtype.Text{
@@ -163,6 +167,10 @@ func (ctrl *Controller) OauthLogin(oauthData *OAuthUserData, c *fiber.Ctx) (*uti
 			fmt.Println("error fetching user by email:", err)
 		} else {
 			fmt.Println("user fetched by email:", data)
+			return &utils.UserJWT{
+				Id:       data.ID.String(),
+				Username: Username,
+			}, nil
 		}
 	} else if oauthData.Provider == "google" {
 		data, err := ctrl.queries.GetUserByEmail(c.Context(), Email)
@@ -171,14 +179,22 @@ func (ctrl *Controller) OauthLogin(oauthData *OAuthUserData, c *fiber.Ctx) (*uti
 			fmt.Println("error fetching user by email:", err)
 		} else {
 			fmt.Println("user fetched by email:", data)
+			return &utils.UserJWT{
+				Id:       data.ID.String(),
+				Username: Username,
+			}, nil
 		}
 	} else {
 		return nil, fmt.Errorf("unsupported oauth provider")
 	}
-
+	usrid := uuid.New()
 	createdUser, err := ctrl.queries.CreateUser(
 		c.Context(),
 		db.CreateUserParams{
+			ID: pgtype.UUID{
+				Bytes: usrid,
+				Valid: true,
+			},
 			Username: Username,
 			Email:    Email,
 			Password: pgtype.Text{
@@ -197,6 +213,8 @@ func (ctrl *Controller) OauthLogin(oauthData *OAuthUserData, c *fiber.Ctx) (*uti
 		},
 	)
 
+	fmt.Println("created user:", createdUser)
+
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
 			fmt.Println("user with this email already exists")
@@ -207,13 +225,15 @@ func (ctrl *Controller) OauthLogin(oauthData *OAuthUserData, c *fiber.Ctx) (*uti
 		fmt.Println("created user:", createdUser)
 	}
 
+	fmt.Println("user id:", createdUser.ID.String())
+
 	return &utils.UserJWT{
 		Id:       createdUser.ID.String(),
 		Username: Username,
 	}, nil
 }
 
-func LogoutUser(c *fiber.Ctx) error {
+func (ctrl *Controller) LogoutUser(c *fiber.Ctx) error {
 	fmt.Println("logout user called")
 
 	// Clear accessToken

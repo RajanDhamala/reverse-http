@@ -8,7 +8,7 @@ import (
 )
 
 func AppConfigRouter(app *fiber.App, ctrl *controller.Controller) {
-	AppConfigRouter := app.Group("/oauth")
+	AppConfigRouter := app.Group("/app")
 
 	AppConfigRouter.Get("/", func(c *fiber.Ctx) error {
 		data := make(map[string]string)
@@ -23,4 +23,6 @@ func AppConfigRouter(app *fiber.App, ctrl *controller.Controller) {
 	AppConfigRouter.Get("/config/:id", middleware.AuthUser, ctrl.GetAppConfig)
 
 	AppConfigRouter.Patch("/update", middleware.AuthUser, ctrl.EditOwnerConfig)
+
+	AppConfigRouter.Delete("/delete/:id", middleware.AuthUser, ctrl.DeleteAppConfig)
 }
