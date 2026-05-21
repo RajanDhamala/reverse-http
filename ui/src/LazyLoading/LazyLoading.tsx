@@ -11,7 +11,7 @@ export const LazyUpdateConfig = lazy(() => import("../Pages/UpdateConfig.tsx"));
 
 
 
-
+export const LazyAppConfig = lazy(() => import("../Pages/AppConfig.tsx"));
 
 
 

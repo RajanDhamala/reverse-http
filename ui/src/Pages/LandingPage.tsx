@@ -1,207 +1,303 @@
+import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  Terminal,
-  Zap,
-  LayoutTemplate,
+  Braces,
+  CheckCircle2,
+  CloudCog,
+  Code2,
   Github,
+  Globe2,
+  KeyRound,
+  LockKeyhole,
+  Network,
+  Route,
+  ShieldCheck,
+  Smartphone,
+  Terminal,
 } from "lucide-react";
 
-const Pill = ({ label }: { label: string }) => (
-  <span
-    className="rounded-full border border-border bg-card/80 px-3 py-1 text-[11px] font-mono text-muted-foreground
-  shadow-sm shadow-black/5 backdrop-blur"
-  >
-    {label}
-  </span>
-);
+const panelClass =
+  "border border-neutral-800 bg-neutral-900/70 shadow-2xl shadow-black/20";
 
-const FeatureCard = ({
-  icon: Icon,
-  title,
-  text,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  text: string;
-}) => (
-  <div className="space-y-1 rounded-xl border bg-card/70 p-3 shadow-sm shadow-black/5">
-    <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
-      <Icon className="h-3.5 w-3.5" />
-      <span>{title}</span>
-    </div>
-    <p className="text-xs leading-relaxed text-muted-foreground">{text}</p>
-  </div>
-);
+const primaryLink =
+  "inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-neutral-100 px-5 text-sm font-semibold text-neutral-950 transition hover:bg-white";
 
-const LandingPage = () => {
+const secondaryLink =
+  "inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 px-5 text-sm font-medium text-neutral-300 transition hover:border-neutral-600 hover:text-white";
+
+const features = [
+  {
+    icon: <Braces className="h-4 w-4" aria-hidden="true" />,
+    title: "Startup config endpoint",
+    text: "Serve app JSON at launch so mobile and web clients can discover the latest backend URL without shipping a new build.",
+  },
+  {
+    icon: <Route className="h-4 w-4" aria-hidden="true" />,
+    title: "Reverse HTTP routing",
+    text: "Point public callbacks at your local or dockerized services while you keep full control of backend behavior.",
+  },
+  {
+    icon: <LockKeyhole className="h-4 w-4" aria-hidden="true" />,
+    title: "OAuth handoff control",
+    text: "Use Google and GitHub callback flows from localhost, then let your backend decide how tokens are returned.",
+  },
+];
+
+const flowSteps = [
+  "RN app boots",
+  "Fetch config JSON",
+  "Resolve live backend",
+  "Send request",
+];
+
+function HeroVisual() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background/90 to-background/60 text-foreground">
-      {/* soft glows */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-24 right-[-7rem] h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute bottom-[-5rem] left-[-6rem] h-56 w-56 rounded-full bg-emerald-500/25 blur-3xl" />
-      </div>
-
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-6 md:py-8">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl border bg-background/80 shadow-sm shadow-black/5 backdrop-blur">
-            <span className="bg-gradient-to-tr from-primary to-primary/70 bg-clip-text text-xl font-semibold text-transparent">
-              SF
-            </span>
+    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:48px_48px]" />
+      <div className="absolute left-1/2 top-28 w-[min(980px,92vw)] -translate-x-1/2">
+        <div className="grid gap-3 opacity-45 md:grid-cols-[1fr_1.2fr_1fr]">
+          <div className="hidden rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 md:block">
+            <div className="mb-4 flex items-center gap-2 text-xs text-neutral-500">
+              <Smartphone className="h-3.5 w-3.5" aria-hidden="true" />
+              app startup
+            </div>
+            <div className="space-y-2 font-mono text-[11px] text-neutral-500">
+              <p>GET /app/config/mobile</p>
+              <p className="text-emerald-300">200 baseUrl updated</p>
+              <p>api: 192.168.1.42</p>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold tracking-tight md:text-base">
-              StackForge
-            </span>
-            <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/80 md:text-[12px]">
-              stack-installer-cli
-            </span>
+          <div className="rounded-xl border border-neutral-700 bg-neutral-900/90 p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-neutral-400">
+                <CloudCog className="h-3.5 w-3.5" aria-hidden="true" />
+                control plane
+              </div>
+              <span className="rounded-full border border-emerald-900/70 bg-emerald-950/40 px-2 py-0.5 text-[10px] text-emerald-200">
+                live
+              </span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
+                <p className="text-[10px] text-neutral-600">Config keys</p>
+                <p className="mt-1 text-xl font-semibold text-neutral-100">14</p>
+              </div>
+              <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
+                <p className="text-[10px] text-neutral-600">OAuth routes</p>
+                <p className="mt-1 text-xl font-semibold text-neutral-100">03</p>
+              </div>
+            </div>
+          </div>
+          <div className="hidden rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 lg:block">
+            <div className="mb-4 flex items-center gap-2 text-xs text-neutral-500">
+              <Github className="h-3.5 w-3.5" aria-hidden="true" />
+              oauth callback
+            </div>
+            <div className="space-y-2 font-mono text-[11px] text-neutral-500">
+              <p>github.com/login/oauth</p>
+              <p className="text-sky-300">redirect /oauth/callback</p>
+              <p className="text-emerald-300">token returned</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Hero() {
+  return (
+    <section className="relative min-h-[calc(100vh-4rem)] overflow-hidden">
+      <HeroVisual />
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-7xl flex-col justify-center px-4 py-16 md:px-8">
+        <div className="max-w-4xl">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/90 px-3 py-1 text-xs text-neutral-500">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            Config delivery and localhost OAuth for real apps
+          </div>
+
+          <h1 className="max-w-4xl text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl">
+            Reverse HTTP for apps that move faster than their backend URLs.
+          </h1>
+          <p className="mt-5 max-w-2xl text-base leading-7 text-neutral-400 md:text-lg">
+            Serve boot-time config JSON, update changing local IPs in one place,
+            and route OAuth callbacks from Google or GitHub back to your own backend.
+          </p>
+
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link to="/app" className={primaryLink}>
+              Manage app configs
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+            <Link to="/oauth" className={secondaryLink}>
+              Set up OAuth routes
+              <Route className="h-4 w-4" aria-hidden="true" />
+            </Link>
           </div>
         </div>
 
-        <nav className="hidden items-center gap-4 text-xs font-medium text-muted-foreground md:flex">
-          <button className="rounded-full border border-transparent px-4 py-1.5 transition hover:border-border hover:bg-muted/60">
-            Docs (soon)
-          </button>
-          <button
-            className="inline-flex items-center gap-1.5 rounded-full border bg-foreground text-background px-4 py-1.5
-           font-semibold shadow-sm shadow-black/10 transition hover:bg-foreground/90"
-            onClick={() => {
-              window.open(
-                "https://github.com/RajanDhamala/stackforge-cli",
-                "_blank",
-              );
-            }}
-          >
-            <Github className="h-3.5 w-3.5" />
-            <span>Star the CLI</span>
-          </button>
-        </nav>
-      </header>
-
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 pb-16 pt-2 md:flex-row md:items-center md:gap-12 md:pb-24">
-        <section className="flex-1 space-y-7">
-          <div
-            className="inline-flex items-center gap-2 rounded-full border bg-card/80 px-3 py-1 text-[11px]
-           font-medium text-muted-foreground shadow-sm shadow-black/5 backdrop-blur"
-          >
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/10 text-[9px] text-emerald-500">
-              ●
-            </span>
-            <span className="hidden sm:inline">New</span>
-            <span className="text-foreground/80">
-              React / TS / Express stack in one shot
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            <h1
-              className="bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-4xl font-semibold leading-tight
-             tracking-tight text-transparent sm:text-5xl md:text-5xl"
+        <div className="mt-12 grid gap-3 md:grid-cols-4">
+          {flowSteps.map((step, index) => (
+            <div
+              key={step}
+              className="rounded-xl border border-neutral-800 bg-neutral-900/70 p-4"
             >
-              Your own full‑stack boilerplate,
-              <br className="hidden sm:block" /> shipped from the CLI.
-            </h1>
-            <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
-              <strong>stack-installer-cli</strong> by StackForge spins up React
-              + TypeScript on the front, and Express, Mongoose, and Prisma on
-              the back. Opinionated, batteries‑included, and styled like a
-              modern React starter — without the noise.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button
-              className="group inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-2.5
-             text-sm font-semibold text-background shadow-[0_18px_45px_-18px_rgba(0,0,0,0.7)] transition hover:-translate-y-[1px] hover:bg-foreground/95"
-              onClick={(e) => {
-                window.open(
-                  "https://www.npmjs.com/package/stack-installer-cli",
-                  "_blank",
-                );
-              }}
-            >
-              <Zap className="h-4 w-4" />
-              Init my stack
-              <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-            </button>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Pill label="npx stack-installer-cli" />
+              <p className="text-xs text-neutral-600">0{index + 1}</p>
+              <p className="mt-2 text-sm font-medium text-neutral-100">{step}</p>
             </div>
-          </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-          <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
-            <FeatureCard
-              icon={LayoutTemplate}
-              title="Full boilerplate"
-              text="Landing, auth, test page, API layer, and routing ready from init."
-            />
-            <FeatureCard
-              icon={Zap}
-              title="Modern stack"
-              text="React + TS + Vite, Zustand, React Query, Axios, Tailwind, and more."
-            />
-            <FeatureCard
-              icon={Terminal}
-              title="Backend wired"
-              text="Express server with Mongo via Mongoose plus Prisma ORM, pre‑hooked."
-            />
-          </div>
-        </section>
+function Platform() {
+  return (
+    <section id="platform" className="border-y border-neutral-900 bg-neutral-950 py-16 md:py-20">
+      <div className="mx-auto w-full max-w-7xl px-4 md:px-8">
+        <div className="mb-8 max-w-2xl">
+          <h2 className="text-2xl font-semibold text-white md:text-3xl">
+            One small control plane, two practical jobs.
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-neutral-500">
+            Keep app startup configuration and OAuth reverse routing in the same
+            console instead of scattering local URLs, tokens, and callback paths.
+          </p>
+        </div>
 
-        <section className="flex-1">
-          <div className="relative mx-auto max-w-md rounded-3xl border bg-card/90 p-4 shadow-[0_22px_60px_-26px_rgba(0,0,0,0.9)] backdrop-blur">
-            <div className="mb-3 flex items-center justify-between text-[10px] text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-400/90" />
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
+        <div className="grid gap-4 md:grid-cols-3">
+          {features.map((feature) => (
+            <div key={feature.title} className={panelClass + " rounded-xl p-5"}>
+              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-300">
+                {feature.icon}
               </div>
-              <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
-                stack-forge • dev
-              </span>
+              <h3 className="text-base font-semibold text-neutral-100">
+                {feature.title}
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-neutral-500">
+                {feature.text}
+              </p>
             </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-            <div className="space-y-3 rounded-2xl border bg-background/90 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-col gap-1">
-                  <div className="h-2.5 w-28 rounded-full bg-gradient-to-r from-primary/90 via-primary/60 to-primary/20" />
-                  <div className="h-2 w-20 rounded-full bg-muted" />
-                </div>
-                <div className="h-7 w-20 rounded-full bg-gradient-to-r from-foreground via-foreground/80 to-foreground/50" />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div className="h-14 rounded-xl bg-muted" />
-                <div className="h-14 rounded-xl bg-muted" />
-                <div className="h-14 rounded-xl bg-muted" />
-              </div>
-
-              <div className="space-y-1 rounded-xl border bg-black/95 p-3 text-[11px] font-mono text-emerald-100">
-                <div className="flex items-center gap-2 text-emerald-400/80">
-                  <Terminal className="h-3 w-3" />
-                  <span>stack-forge ▸ init</span>
-                </div>
-                <p>$ npx stack-installer-cli</p>
-                <p className="text-emerald-400/90">
-                  ✔ Scaffolding React + TS + Vite app…
-                </p>
-                <p className="text-emerald-400/90">
-                  ✔ Adding Express, Mongoose, Prisma boilerplate…
-                </p>
-                <p className="text-emerald-400/90">
-                  ✔ Wiring Zustand store, React Query, and Axios wrapper…
-                </p>
-                <p className="text-emerald-400/90">
-                  ✔ Dropping in landing + auth pages…
-                </p>
-                <p className="text-emerald-300/90">Done. Run: npm run dev</p>
-              </div>
-            </div>
+function Workflow() {
+  return (
+    <section id="workflow" className="bg-neutral-950 py-16 md:py-20">
+      <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 md:px-8 lg:grid-cols-[0.9fr_1.1fr]">
+        <div>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 text-xs text-neutral-500">
+            <Terminal className="h-3.5 w-3.5" aria-hidden="true" />
+            Runtime flow
           </div>
-        </section>
+          <h2 className="text-2xl font-semibold text-white md:text-3xl">
+            Change the backend once, every app reads the new value.
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-neutral-500">
+            When a dockerized service moves to a new local IP, update the config
+            in the platform. Your RN app or website fetches fresh JSON at startup
+            and uses that endpoint for future requests.
+          </p>
+        </div>
+
+        <div className={panelClass + " rounded-xl p-5"}>
+          <div className="mb-4 flex items-center justify-between border-b border-neutral-800 pb-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-neutral-100">
+              <Code2 className="h-4 w-4" aria-hidden="true" />
+              boot-config.json
+            </div>
+            <span className="rounded-md border border-neutral-800 bg-neutral-950 px-2 py-1 text-[11px] text-neutral-500">
+              startup
+            </span>
+          </div>
+          <pre className="overflow-auto rounded-lg border border-neutral-800 bg-black p-4 font-mono text-xs leading-6 text-neutral-400">
+            <code>
+{`{
+  "apiBaseUrl": "http://192.168.1.42:4000",
+  "oauthRedirect": "https://reverse.local/oauth/callback",
+  "features": {
+    "githubLogin": true,
+    "googleLogin": true
+  }
+}`}
+            </code>
+          </pre>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function UseCases() {
+  return (
+    <section id="use-cases" className="bg-neutral-950 pb-16 md:pb-24">
+      <div className="mx-auto grid w-full max-w-7xl gap-4 px-4 md:grid-cols-2 md:px-8">
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-300">
+            <Smartphone className="h-4 w-4" aria-hidden="true" />
+          </div>
+          <h3 className="text-lg font-semibold text-neutral-100">
+            Mobile apps with changing local backends
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-neutral-500">
+            Avoid rebuilding the app every time your dockerized backend moves.
+            Keep the current base URL in a server-side config record.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-300">
+            <Network className="h-4 w-4" aria-hidden="true" />
+          </div>
+          <h3 className="text-lg font-semibold text-neutral-100">
+            OAuth callbacks while developing locally
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-neutral-500">
+            Let providers redirect to this service, forward the useful request to
+            your backend, and keep token handling under your backend control.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-neutral-900 bg-neutral-950 py-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 text-sm text-neutral-600 md:flex-row md:items-center md:justify-between md:px-8">
+        <div className="flex items-center gap-2 text-neutral-400">
+          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+          Reverse HTTP
+        </div>
+        <div className="flex flex-wrap gap-4">
+          <Link to="/app" className="transition hover:text-neutral-300">
+            Config console
+          </Link>
+          <Link to="/oauth" className="transition hover:text-neutral-300">
+            OAuth routing
+          </Link>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+const LandingPage = () => {
+  return (
+    <div className="min-h-screen overflow-x-hidden bg-neutral-950 text-neutral-100 selection:bg-neutral-200 selection:text-neutral-950">
+      <main>
+        <Hero />
+        <Platform />
+        <Workflow />
+        <UseCases />
       </main>
+      <Footer />
     </div>
   );
 };
