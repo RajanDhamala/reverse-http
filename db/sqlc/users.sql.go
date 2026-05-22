@@ -218,6 +218,27 @@ func (q *Queries) GetAppConfigs(ctx context.Context, userID pgtype.UUID) ([]AppC
 	return items, nil
 }
 
+const getOauthClientSecret = `-- name: GetOauthClientSecret :one
+SELECT client_secret ,id from oauth_configs where id=$1 AND user_id=$2
+`
+
+type GetOauthClientSecretParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+type GetOauthClientSecretRow struct {
+	ClientSecret string      `json:"client_secret"`
+	ID           pgtype.UUID `json:"id"`
+}
+
+func (q *Queries) GetOauthClientSecret(ctx context.Context, arg GetOauthClientSecretParams) (GetOauthClientSecretRow, error) {
+	row := q.db.QueryRow(ctx, getOauthClientSecret, arg.ID, arg.UserID)
+	var i GetOauthClientSecretRow
+	err := row.Scan(&i.ClientSecret, &i.ID)
+	return i, err
+}
+
 const getOauthConfigData = `-- name: GetOauthConfigData :one
 SELECT id, key, client_secret, endpoint, user_id, created_at, updated_at from oauth_configs WHERE id=$1
 `

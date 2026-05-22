@@ -2,12 +2,9 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   Braces,
-  CheckCircle2,
   CloudCog,
   Code2,
   Github,
-  Globe2,
-  KeyRound,
   LockKeyhole,
   Network,
   Route,
@@ -187,6 +184,11 @@ function Platform() {
 }
 
 function Workflow() {
+  const jsonKeyClass = "text-sky-300";
+  const jsonStringClass = "text-emerald-300";
+  const jsonBooleanClass = "text-amber-300";
+  const jsonPunctuationClass = "text-neutral-500";
+
   return (
     <section id="workflow" className="bg-neutral-950 py-16 md:py-20">
       <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 md:px-8 lg:grid-cols-[0.9fr_1.1fr]">
@@ -215,16 +217,27 @@ function Workflow() {
               startup
             </span>
           </div>
-          <pre className="overflow-auto rounded-lg border border-neutral-800 bg-black p-4 font-mono text-xs leading-6 text-neutral-400">
+          <pre className="overflow-auto rounded-lg border border-neutral-800 bg-black p-4 font-mono text-xs leading-6 shadow-inner shadow-emerald-950/20">
             <code>
-{`{
-  "apiBaseUrl": "http://192.168.1.42:4000",
-  "oauthRedirect": "https://reverse.local/oauth/callback",
-  "features": {
-    "githubLogin": true,
-    "googleLogin": true
-  }
-}`}
+              <span className={jsonPunctuationClass}>{`{\n`}</span>
+              <span className={jsonKeyClass}>{`  "apiBaseUrl"`}</span>
+              <span className={jsonPunctuationClass}>{`: `}</span>
+              <span className={jsonStringClass}>{`"http://192.168.1.42:4000"`}</span>
+              <span className={jsonPunctuationClass}>{`,\n`}</span>
+              <span className={jsonKeyClass}>{`  "oauthRedirect"`}</span>
+              <span className={jsonPunctuationClass}>{`: `}</span>
+              <span className={jsonStringClass}>{`"https://reverse.local/oauth/callback"`}</span>
+              <span className={jsonPunctuationClass}>{`,\n`}</span>
+              <span className={jsonKeyClass}>{`  "features"`}</span>
+              <span className={jsonPunctuationClass}>{`: {\n`}</span>
+              <span className={jsonKeyClass}>{`    "githubLogin"`}</span>
+              <span className={jsonPunctuationClass}>{`: `}</span>
+              <span className={jsonBooleanClass}>true</span>
+              <span className={jsonPunctuationClass}>{`,\n`}</span>
+              <span className={jsonKeyClass}>{`    "googleLogin"`}</span>
+              <span className={jsonPunctuationClass}>{`: `}</span>
+              <span className={jsonBooleanClass}>true</span>
+              <span className={jsonPunctuationClass}>{`\n  }\n}`}</span>
             </code>
           </pre>
         </div>

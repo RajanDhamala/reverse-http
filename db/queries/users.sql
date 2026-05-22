@@ -61,6 +61,9 @@ INSERT INTO oauth_configs (id,key,endpoint,user_id,client_secret ) VALUES($1,$2,
 -- name: GetOauthConfigData :one
 SELECT * from oauth_configs WHERE id=$1 ;
 
+-- name: GetOauthClientSecret :one
+SELECT client_secret ,id from oauth_configs where id=$1 AND user_id=$2;
+
 -- name: GetOauthList :many
 SELECT id,key,endpoint,created_at,updated_at from oauth_configs where user_id=$1;
 

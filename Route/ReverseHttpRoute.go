@@ -23,5 +23,9 @@ func ReverseHttpRouter(app *fiber.App, ctrl *controller.Controller) {
 
 	ReverseRoute.Post("/edit", middleware.AuthUser, ctrl.UpdateConfig)
 
+	ReverseRoute.Get("/clientKey/:id", middleware.AuthUser, ctrl.GetConfigSecret)
+
 	ReverseRoute.Get("/remote/:id", ctrl.RedirectRequest)
+
+	ReverseRoute.Delete("/truncate/:id", middleware.AuthUser, ctrl.DeleteOauthConfig)
 }

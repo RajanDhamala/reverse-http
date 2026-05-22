@@ -19,6 +19,7 @@ type Querier interface {
 	DeleteOauthConfig(ctx context.Context, arg DeleteOauthConfigParams) error
 	GetAppConfigByID(ctx context.Context, id pgtype.UUID) (GetAppConfigByIDRow, error)
 	GetAppConfigs(ctx context.Context, userID pgtype.UUID) ([]AppConfig, error)
+	GetOauthClientSecret(ctx context.Context, arg GetOauthClientSecretParams) (GetOauthClientSecretRow, error)
 	GetOauthConfigData(ctx context.Context, id pgtype.UUID) (OauthConfig, error)
 	GetOauthList(ctx context.Context, userID pgtype.UUID) ([]GetOauthListRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)

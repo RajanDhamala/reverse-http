@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle2, Edit, Globe2, KeyRound, Loader2, Network, Plus, Route, Save, Search, ServerCog, Settings2, ShieldCheck, Tag, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Edit, Eye, EyeOff, Globe2, KeyRound, Loader2, MoreVertical, Network, Plus, Route, Save, Search, ServerCog, Settings2, ShieldCheck, Tag, Trash2, X } from "lucide-react";
 
 interface ReverseHttpReq {
   client_secret: string;
@@ -19,7 +19,7 @@ interface Config {
 }
 
 interface EditState {
-  client_secret?: string;
+  client_secret: string;
   id: string;
   key: string;
   endpoint: string;
@@ -75,6 +75,40 @@ async function updateReverseConfig(payload: EditState) {
   return data;
 }
 
+async function fetchClientSecretById(id: string) {
+  const response = await fetch(
+    `${BASE}/reverse-http/clientKey/${encodeURIComponent(id)}`,
+    {
+      credentials: "include",
+    }
+  );
+  const data = await readJson(response);
+  if (!response.ok) throw new Error(data.error || "Failed to load client secret");
+
+  const record = data.data || data.config || data;
+  return {
+    id,
+    client_secret: record.client_secret || record.ClientSecret || "",
+  };
+}
+
+async function deleteReverseConfig(id: string) {
+  const response = await fetch(
+    `${BASE}/reverse-http/truncate/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    }
+  );
+  const data = await readJson(response);
+  if (!response.ok) throw new Error(data.error || data.message || "Failed to delete config");
+  return data;
+}
+
+function cx(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
+}
+
 function shortId(id: string) {
   if (!id) return "No id";
   return id.length > 10 ? `${id.slice(0, 8)}..` : id;
@@ -112,8 +146,14 @@ const AddRoute = () => {
     id: "",
     key: "",
     endpoint: "",
+    client_secret: "",
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [clientSecretLoaded, setClientSecretLoaded] = useState(false);
+  const [createSecretVisible, setCreateSecretVisible] = useState(false);
+  const [editSecretVisible, setEditSecretVisible] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
 
   const configsQuery = useQuery({
@@ -146,6 +186,7 @@ const AddRoute = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["reverse-http-list"] });
       setIsEditing(false);
+      setClientSecretLoaded(false);
       setNotice({ type: "success", text: "Configuration saved" });
       window.setTimeout(() => setNotice(null), 2500);
     },
@@ -157,8 +198,56 @@ const AddRoute = () => {
     },
   });
 
+  const loadClientSecretMutation = useMutation({
+    mutationFn: fetchClientSecretById,
+    onSuccess: (data) => {
+      setEditConfig((current) =>
+        current.id === data.id
+          ? { ...current, client_secret: data.client_secret }
+          : current
+      );
+      setClientSecretLoaded(true);
+    },
+    onError: (error) => {
+      setClientSecretLoaded(false);
+      setNotice({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Failed to load client secret",
+      });
+    },
+  });
+
+  const deleteConfigMutation = useMutation({
+    mutationFn: deleteReverseConfig,
+    onSuccess: (_data, id) => {
+      queryClient.setQueryData<Config[]>(["reverse-http-list"], (current) =>
+        (current ?? []).filter((item) => item.id !== id)
+      );
+      void queryClient.invalidateQueries({ queryKey: ["reverse-http-list"] });
+      setOpenMenuId(null);
+      setDeleteConfirmId(null);
+      setNotice({ type: "success", text: "Configuration deleted" });
+      window.setTimeout(() => setNotice(null), 2500);
+    },
+    onError: (error) => {
+      setNotice({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete configuration",
+      });
+    },
+  });
+
   const configs = configsQuery.data ?? [];
   const endpointCount = configs.filter((item) => item.endpoint).length;
+  const deletingId = deleteConfigMutation.isPending
+    ? deleteConfigMutation.variables ?? null
+    : null;
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -176,6 +265,36 @@ const AddRoute = () => {
       endpoint: trimmedEndpoint,
       client_secret: clientSecret.trim(),
     });
+  };
+
+  const startEditingConfig = (item: Config) => {
+    if (!item.id) {
+      setNotice({ type: "error", text: "Configuration id is missing" });
+      return;
+    }
+
+    setNotice(null);
+    setOpenMenuId(null);
+    setDeleteConfirmId(null);
+    setClientSecretLoaded(false);
+    setEditSecretVisible(false);
+    setEditConfig({
+      id: item.id,
+      key: item.key || item.name || "",
+      endpoint: item.endpoint || "",
+      client_secret: "",
+    });
+    setIsEditing(true);
+    loadClientSecretMutation.mutate(item.id);
+  };
+
+  const deleteConfig = (id: string) => {
+    if (!id) {
+      setNotice({ type: "error", text: "Configuration id is missing" });
+      return;
+    }
+
+    deleteConfigMutation.mutate(id);
   };
 
   return (
@@ -268,16 +387,34 @@ const AddRoute = () => {
 
               <div>
                 <label className={labelClass}>
-                  <Tag className="h-3.5 w-3.5" aria-hidden="true" />
+                  <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
                   Client secret
                 </label>
-                <input
-                  type="text"
-                  value={clientSecret}
-                  onChange={(event) => setClientSecret(event.target.value)}
-                  placeholder="secrete key"
-                  className={fieldClass}
-                />
+                <div className="relative">
+                  <input
+                    type={createSecretVisible ? "text" : "password"}
+                    value={clientSecret}
+                    onChange={(event) => setClientSecret(event.target.value)}
+                    placeholder="secret key"
+                    className={fieldClass + " pr-10"}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCreateSecretVisible((current) => !current)}
+                    className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-neutral-500 transition hover:bg-neutral-900 hover:text-neutral-100"
+                    aria-label={
+                      createSecretVisible
+                        ? "Hide client secret"
+                        : "Show client secret"
+                    }
+                  >
+                    {createSecretVisible ? (
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <Eye className="h-4 w-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
@@ -348,7 +485,7 @@ const AddRoute = () => {
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-lg border border-neutral-800">
+              <div className="rounded-lg border border-neutral-800">
                 <div className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto] gap-4 border-b border-neutral-800 bg-neutral-950 px-4 py-3 text-xs text-neutral-500 md:grid">
                   <span>Key</span>
                   <span>Endpoint</span>
@@ -357,13 +494,18 @@ const AddRoute = () => {
                 </div>
 
                 <div className="divide-y divide-neutral-800">
-                  {configs.map((item) => {
+                  {configs.map((item, idx) => {
                     const label = item.key || item.name || "Unnamed";
+                    const actionKey = item.id || `row-${idx}`;
+                    const menuDropsUp = idx === configs.length - 1;
 
                     return (
                       <div
-                        key={item.id}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-neutral-900 px-4 py-4 transition hover:bg-neutral-900/60 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto] md:items-center"
+                        key={item.id || idx}
+                        className={cx(
+                          "grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-neutral-900 px-4 py-4 transition hover:bg-neutral-900/60 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto] md:items-center",
+                          openMenuId === actionKey && "relative z-50"
+                        )}
                       >
                         <div className="col-span-2 min-w-0 md:col-span-1">
                           <div className="flex items-center gap-2">
@@ -396,22 +538,102 @@ const AddRoute = () => {
                           </span>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setNotice(null);
-                            setEditConfig({
-                              id: item.id,
-                              key: item.key || item.name || "",
-                              endpoint: item.endpoint || "",
-                            });
-                            setIsEditing(true);
-                          }}
-                          className="inline-flex h-9 items-center justify-center gap-2 justify-self-end rounded-lg border border-neutral-800 bg-neutral-950 px-3 text-xs font-medium text-neutral-300 transition hover:border-neutral-600 hover:text-white"
-                        >
-                          <Edit className="h-3.5 w-3.5" aria-hidden="true" />
-                          Edit
-                        </button>
+                        <div className="relative justify-self-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuId((current) =>
+                                current === actionKey ? null : actionKey
+                              );
+                              setDeleteConfirmId(null);
+                            }}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-400 transition hover:border-neutral-600 hover:text-white"
+                            aria-label={`Open actions for ${label}`}
+                            title="Actions"
+                          >
+                            <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                          </button>
+
+                          {openMenuId === actionKey ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  setDeleteConfirmId(null);
+                                }}
+                                className="fixed inset-0 z-40 cursor-default bg-transparent"
+                                aria-label="Close actions menu"
+                              />
+                              <div
+                                className={cx(
+                                  "fixed left-4 right-4 top-1/2 z-[70] w-auto -translate-y-1/2 rounded-lg border border-neutral-800 bg-neutral-950 p-1.5 shadow-2xl shadow-black/40 md:absolute md:left-auto md:right-0 md:top-auto md:w-52 md:translate-y-0",
+                                  menuDropsUp ? "md:bottom-full md:mb-2" : "md:mt-2"
+                                )}
+                              >
+                                {deleteConfirmId === actionKey ? (
+                                  <div className="p-2">
+                                    <p className="text-xs font-medium text-neutral-100">
+                                      Delete this route?
+                                    </p>
+                                    <p className="mt-1 text-[11px] leading-4 text-neutral-500">
+                                      This action cannot be undone.
+                                    </p>
+                                    <div className="mt-3 grid grid-cols-2 gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeleteConfirmId(null)}
+                                        className="inline-flex h-8 items-center justify-center rounded-md border border-neutral-800 bg-neutral-900 text-xs font-medium text-neutral-300 transition hover:border-neutral-600 hover:text-white"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteConfig(item.id)}
+                                        disabled={deletingId === item.id}
+                                        className={cx(
+                                          "inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-medium transition",
+                                          deletingId === item.id
+                                            ? "cursor-not-allowed border-red-950/70 bg-red-950/20 text-red-300/60"
+                                            : "border-red-900/70 bg-red-950/30 text-red-200 hover:border-red-700 hover:text-red-100"
+                                        )}
+                                      >
+                                        {deletingId === item.id ? (
+                                          <Loader2
+                                            className="h-3.5 w-3.5 animate-spin"
+                                            aria-hidden="true"
+                                          />
+                                        ) : (
+                                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                        )}
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditingConfig(item)}
+                                      className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-medium text-neutral-300 transition hover:bg-neutral-900 hover:text-white"
+                                    >
+                                      <Edit className="h-3.5 w-3.5" aria-hidden="true" />
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeleteConfirmId(actionKey)}
+                                      className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-medium text-red-200 transition hover:bg-red-950/30 hover:text-red-100"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                      Delete
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </>
+                          ) : null}
+                        </div>
                       </div>
                     );
                   })}
@@ -426,7 +648,10 @@ const AddRoute = () => {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           onClick={(event) => {
-            if (event.target === event.currentTarget) setIsEditing(false);
+            if (event.target === event.currentTarget) {
+              setIsEditing(false);
+              setClientSecretLoaded(false);
+            }
           }}
         >
           <div className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl shadow-black/40">
@@ -446,7 +671,10 @@ const AddRoute = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setIsEditing(false)}
+                onClick={() => {
+                  setIsEditing(false);
+                  setClientSecretLoaded(false);
+                }}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-500 transition hover:border-neutral-600 hover:text-white"
                 aria-label="Close edit modal"
               >
@@ -486,25 +714,86 @@ const AddRoute = () => {
                   className={fieldClass}
                 />
               </div>
+
+              <div>
+                <label className={labelClass}>
+                  <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                  Client secret
+                </label>
+                <div className="relative">
+                  <input
+                    type={editSecretVisible ? "text" : "password"}
+                    value={editedConfig.client_secret}
+                    onChange={(event) =>
+                      setEditConfig({
+                        ...editedConfig,
+                        client_secret: event.target.value,
+                      })
+                    }
+                    placeholder={
+                      loadClientSecretMutation.isPending
+                        ? "Loading client secret"
+                        : "Client secret"
+                    }
+                    disabled={loadClientSecretMutation.isPending}
+                    className={fieldClass + " pr-10 disabled:cursor-wait disabled:opacity-60"}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEditSecretVisible((current) => !current)}
+                    disabled={loadClientSecretMutation.isPending}
+                    className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-neutral-500 transition hover:bg-neutral-900 hover:text-neutral-100 disabled:cursor-wait disabled:opacity-50"
+                    aria-label={
+                      editSecretVisible
+                        ? "Hide client secret"
+                        : "Show client secret"
+                    }
+                  >
+                    {loadClientSecretMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : editSecretVisible ? (
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <Eye className="h-4 w-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
+                {loadClientSecretMutation.isError ? (
+                  <p className="mt-2 text-xs text-red-200">
+                    Could not load the client secret. Close and choose Edit again.
+                  </p>
+                ) : null}
+              </div>
             </div>
 
             <div className="mt-5 flex gap-2 border-t border-neutral-800 pt-4">
               <button
                 type="button"
                 onClick={() => updateConfigMutation.mutate(editedConfig)}
-                disabled={updateConfigMutation.isPending}
+                disabled={
+                  updateConfigMutation.isPending ||
+                  loadClientSecretMutation.isPending ||
+                  !clientSecretLoaded
+                }
                 className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-neutral-100 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {updateConfigMutation.isPending ? (
+                {updateConfigMutation.isPending || loadClientSecretMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
                   <Save className="h-4 w-4" aria-hidden="true" />
                 )}
-                {updateConfigMutation.isPending ? "Saving" : "Save changes"}
+                {loadClientSecretMutation.isPending
+                  ? "Loading secret"
+                  : updateConfigMutation.isPending
+                    ? "Saving"
+                    : "Save changes"}
               </button>
               <button
                 type="button"
-                onClick={() => setIsEditing(false)}
+                onClick={() => {
+                  setIsEditing(false);
+                  setClientSecretLoaded(false);
+                }}
                 className="inline-flex h-10 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 px-4 text-sm font-medium text-neutral-300 transition hover:border-neutral-600 hover:text-white"
               >
                 Cancel

@@ -159,3 +159,59 @@ func (ctrl *Controller) OauthCallbackSash(c *fiber.Ctx) error {
 		"message": "oauth callback hit",
 	})
 }
+
+func (ctrl *Controller) GetConfigSecret(c *fiber.Ctx) error {
+	appId, err := utils.StrToPgUUID(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
+	}
+
+	usrData := c.Locals("user").(*utils.UserJWT)
+
+	usrId, err := utils.StrToPgUUID(usrData.Id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	data, err := ctrl.queries.GetOauthClientSecret(c.Context(), db.GetOauthClientSecretParams{
+		ID:     appId,
+		UserID: usrId,
+	})
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "failed to fetch the client secret"})
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"message": "get config secret hit",
+		"data":    data,
+	})
+}
+
+func (ctrl *Controller) DeleteOauthConfig(c *fiber.Ctx) error {
+	configID, err := utils.StrToPgUUID(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
+	}
+
+	usrData := c.Locals("user").(*utils.UserJWT)
+
+	usrId, err := utils.StrToPgUUID(usrData.Id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	errs := ctrl.queries.DeleteOauthConfig(c.Context(), db.DeleteOauthConfigParams{
+		ID:     configID,
+		UserID: usrId,
+	})
+
+	if errs != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "failed to delete oauth config",
+		})
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"message": "successfully deleted oauth config",
+	})
+}

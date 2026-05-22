@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ChevronDown, LogOut, Menu, ServerCog, X } from "lucide-react";
 import { type AuthUser, useUserStore } from "../Zustand/userStore";
 
 const navItems = [
   { label: "Home", to: "/" },
+  { label: "Docs", to: "/docs" },
   { label: "App Configs", to: "/app" },
   { label: "OAuth Routes", to: "/oauth" },
 ];
@@ -51,8 +52,34 @@ function ProfileMenu({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const username = pickUserName(user);
   const avatar = pickAvatar(user);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (menuRef.current?.contains(target)) return;
+      setIsOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -73,7 +100,7 @@ function ProfileMenu({
   };
 
   return (
-    <div className="relative">
+    <div ref={menuRef} className="relative">
       <button
         type="button"
         onClick={() => setIsOpen((current) => !current)}
