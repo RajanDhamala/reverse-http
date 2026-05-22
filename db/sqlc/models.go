@@ -19,12 +19,13 @@ type AppConfig struct {
 }
 
 type OauthConfig struct {
-	ID        pgtype.UUID        `json:"id"`
-	Key       string             `json:"key"`
-	Endpoint  string             `json:"endpoint"`
-	UserID    pgtype.UUID        `json:"user_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID           pgtype.UUID        `json:"id"`
+	Key          string             `json:"key"`
+	ClientSecret string             `json:"client_secret"`
+	Endpoint     string             `json:"endpoint"`
+	UserID       pgtype.UUID        `json:"user_id"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type User struct {

@@ -23,5 +23,5 @@ func ReverseHttpRouter(app *fiber.App, ctrl *controller.Controller) {
 
 	ReverseRoute.Post("/edit", middleware.AuthUser, ctrl.UpdateConfig)
 
-	ReverseRoute.Get("/verify", ctrl.GoogleLogin)
+	ReverseRoute.Get("/remote/:id", ctrl.RedirectRequest)
 }

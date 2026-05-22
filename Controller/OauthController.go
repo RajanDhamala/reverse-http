@@ -41,18 +41,220 @@ type GoogleUser struct {
 	VerifiedEmail bool   `json:"verified_email"`
 }
 
-func (ctrl *Controller) GithubLogin(c *fiber.Ctx) error {
-	githubConfig := utils.GithubConfig()
-	url := githubConfig.AuthCodeURL("randomstate")
-	fmt.Println("authurl:", url)
+func redirectWithUserData(c *fiber.Ctx, data OAuthUserData) error {
+	jsonData, _ := json.Marshal(data)
+	encodedData := url.QueryEscape(string(jsonData))
+	redirectURL := fmt.Sprintf("http://localhost:5173/oauth/callback?data=%s", encodedData)
+	return c.Redirect(redirectURL, fiber.StatusSeeOther)
+}
+
+func redirectWithError(c *fiber.Ctx, errMsg string) error {
+	encodedError := url.QueryEscape(errMsg)
+	redirectURL := fmt.Sprintf("http://localhost:5173/oauth/callback?error=%s", encodedError)
+	return c.Redirect(redirectURL, fiber.StatusSeeOther)
+}
+
+func (ctrl *Controller) GoogleLoginSas(c *fiber.Ctx) error {
+	callbackURL := c.Query("client_id")
+
+	csrfToken := uuid.New().String()
+
+	stateData := map[string]string{
+		"nonce":        csrfToken,
+		"callback_url": callbackURL,
+	}
+
+	if callbackURL != "" {
+		fmt.Println("Received callback URL:", callbackURL)
+		id, err := utils.StrToPgUUID(callbackURL)
+		if err != nil {
+			fmt.Println("Invalid callback URL:", callbackURL)
+			return redirectWithError(c, "Invalid callback URL")
+		}
+		data, err := ctrl.queries.GetOauthConfigData(c.Context(), id)
+		if err != nil {
+			fmt.Println("data:", data)
+			fmt.Println("Error fetching OAuth config data:", err)
+			return redirectWithError(c, "Failed to fetch OAuth config")
+		}
+	} else {
+		fmt.Println("No callback URL provided")
+	}
+	stateJSON, _ := json.Marshal(stateData)
+	encodedState := base64.StdEncoding.EncodeToString(stateJSON)
+
+	googleConfig := utils.GoogleConfig()
+	url := googleConfig.AuthCodeURL(encodedState)
 	return c.Redirect(url, fiber.StatusSeeOther)
 }
 
-func (ctrl *Controller) GithubCallback(c *fiber.Ctx) error {
-	state := c.Query("state")
-	if state != "randomstate" {
-		return redirectWithError(c, "States don't match")
+func (ctrl *Controller) GithubLoginSas(c *fiber.Ctx) error {
+	callbackURL := c.Query("client_id")
+
+	csrfToken := uuid.New().String()
+
+	stateData := map[string]string{
+		"nonce":        csrfToken,
+		"callback_url": callbackURL,
 	}
+
+	if callbackURL != "" {
+		fmt.Println("Received callback URL:", callbackURL)
+		id, err := utils.StrToPgUUID(callbackURL)
+		if err != nil {
+			fmt.Println("Invalid callback URL:", callbackURL)
+			return redirectWithError(c, "Invalid callback URL")
+		}
+		data, err := ctrl.queries.GetOauthConfigData(c.Context(), id)
+		if err != nil {
+			fmt.Println("data:", data)
+			fmt.Println("Error fetching OAuth config data:", err)
+			return redirectWithError(c, "Failed to fetch OAuth config")
+		}
+	} else {
+		fmt.Println("No callback URL provided")
+	}
+
+	stateJSON, _ := json.Marshal(stateData)
+	encodedState := base64.StdEncoding.EncodeToString(stateJSON)
+	githubConfig := utils.GithubConfig()
+	url := githubConfig.AuthCodeURL(encodedState)
+	fmt.Println("github login lets go rock and roll", url)
+	return c.Redirect(url, fiber.StatusSeeOther)
+}
+
+func (ctrl *Controller) GoogleLoginCallbackSas(c *fiber.Ctx) error {
+	fmt.Println("Received Google OAuth callback with query:",
+		c.Query("state"), c.Query("code"))
+	stateJSON, _ := base64.StdEncoding.DecodeString(c.Query("state"))
+	var stateData map[string]string
+	json.Unmarshal(stateJSON, &stateData)
+
+	callbackURL := stateData["callback_url"]
+
+	code := c.Query("code")
+	if code == "" {
+		return redirectWithError(c, "No code provided")
+	}
+
+	googleConfig := utils.GoogleConfig()
+	token, err := googleConfig.Exchange(context.Background(), code)
+	if err != nil {
+		return redirectWithError(c, "Code-token exchange failed")
+	}
+
+	req, _ := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return redirectWithError(c, "Failed to fetch user data")
+	}
+	defer resp.Body.Close()
+
+	userData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return redirectWithError(c, "Failed to read user data")
+	}
+
+	var googleUser GoogleUser
+	if err := json.Unmarshal(userData, &googleUser); err != nil {
+		return redirectWithError(c, "Failed to parse Google user data")
+	}
+
+	oauthData := OAuthUserData{
+		Provider:   "google",
+		ProviderId: googleUser.ID,
+		Email:      googleUser.Email,
+		FullName:   googleUser.Name,
+		AvatarURL:  googleUser.Picture,
+	}
+
+	if callbackURL != "" {
+
+		uId, err := utils.StrToPgUUID(callbackURL)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
+		}
+
+		data, err := ctrl.queries.GetOauthConfigData(c.Context(), uId)
+		if err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "invalid key"})
+		}
+
+		u, err := url.Parse(data.Endpoint)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "invalid endpoint"})
+		}
+
+		q := u.Query()
+
+		style := utils.OauthJwt{
+			Avatar:       oauthData.AvatarURL,
+			ProviderId:   oauthData.ProviderId,
+			Email:        oauthData.Email,
+			Username:     oauthData.FullName,
+			UUID:         uuid.New().String(),
+			ProviderName: "google",
+		}
+		response, err := utils.CreateOauthToken(style, data.ClientSecret)
+		if err != nil {
+			fmt.Println("failed to create token", err)
+			return c.Status(500).JSON(fiber.Map{"error": "failed to create token", "err": err})
+		}
+		q.Set("token", response)
+		u.RawQuery = q.Encode()
+		fmt.Println("FINAL URL:", u.String())
+
+		return c.Redirect(u.String(), fiber.StatusTemporaryRedirect)
+	}
+
+	jwtPaylod, err := ctrl.OauthLogin(&oauthData, c)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	NewAccessToken, err := utils.CreateAccessToken(jwtPaylod)
+	if err != nil {
+		fmt.Println("issue while generating access token")
+	}
+
+	NewRefreshToken, err := utils.CreateRefreshToken(jwtPaylod)
+	if err != nil {
+		fmt.Println("issue while generating refresh token")
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "accessToken",
+		Value:    NewAccessToken,
+		HTTPOnly: true,
+		Path:     "/",
+		Secure:   false, // true in production env
+		Expires:  time.Now().Add(15 * time.Minute),
+	})
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "refreshToken",
+		Value:    NewRefreshToken,
+		HTTPOnly: true,
+		Path:     "/",
+		Secure:   false,
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+	})
+
+	return redirectWithUserData(c, oauthData)
+}
+
+func (ctrl *Controller) GithubLoginSasCallback(c *fiber.Ctx) error {
+	fmt.Println("Received github OAuth callback with query:",
+		c.Query("state"), c.Query("code"))
+	stateJSON, _ := base64.StdEncoding.DecodeString(c.Query("state"))
+	var stateData map[string]string
+	json.Unmarshal(stateJSON, &stateData)
+
+	callbackURL := stateData["callback_url"]
 
 	code := c.Query("code")
 	if code == "" {
@@ -112,8 +314,52 @@ func (ctrl *Controller) GithubCallback(c *fiber.Ctx) error {
 		Provider:   "github",
 		ProviderId: fmt.Sprintf("%d", githubUser.ID),
 		Email:      githubUser.Email,
-		FullName:   githubUser.Name,
-		AvatarURL:  githubUser.AvatarURL,
+		FullName: func() string {
+			if githubUser.Name != "" {
+				return githubUser.Name
+			}
+			return githubUser.Login
+		}(),
+		AvatarURL: githubUser.AvatarURL,
+	}
+
+	if callbackURL != "" {
+
+		uId, err := utils.StrToPgUUID(callbackURL)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
+		}
+
+		data, err := ctrl.queries.GetOauthConfigData(c.Context(), uId)
+		if err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "invalid key"})
+		}
+
+		u, err := url.Parse(data.Endpoint)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "invalid endpoint"})
+		}
+
+		q := u.Query()
+
+		style := utils.OauthJwt{
+			Avatar:       oauthData.AvatarURL,
+			ProviderId:   oauthData.ProviderId,
+			Email:        oauthData.Email,
+			Username:     oauthData.FullName,
+			UUID:         uuid.New().String(),
+			ProviderName: "github",
+		}
+		response, err := utils.CreateOauthToken(style, data.ClientSecret)
+		if err != nil {
+			fmt.Println("failed to create token", err)
+			return c.Status(500).JSON(fiber.Map{"error": "failed to create token", "err": err})
+		}
+		q.Set("token", response)
+		u.RawQuery = q.Encode()
+		fmt.Println("FINAL URL:", u.String())
+
+		return c.Redirect(u.String(), fiber.StatusTemporaryRedirect)
 	}
 
 	jwtPaylod, err := ctrl.OauthLogin(&oauthData, c)
@@ -124,234 +370,6 @@ func (ctrl *Controller) GithubCallback(c *fiber.Ctx) error {
 	}
 
 	fmt.Println("user id:", jwtPaylod)
-
-	NewAccessToken, err := utils.CreateAccessToken(jwtPaylod)
-	if err != nil {
-		fmt.Println("issue while generating access token")
-	}
-
-	NewRefreshToken, err := utils.CreateRefreshToken(jwtPaylod)
-	if err != nil {
-		fmt.Println("issue while generating refresh token")
-	}
-
-	c.Cookie(&fiber.Cookie{
-		Name:     "accessToken",
-		Value:    NewAccessToken,
-		HTTPOnly: true,
-		Path:     "/",
-		Secure:   false, // true in production env
-		Expires:  time.Now().Add(15 * time.Minute),
-	})
-
-	c.Cookie(&fiber.Cookie{
-		Name:     "refreshToken",
-		Value:    NewRefreshToken,
-		HTTPOnly: true,
-		Path:     "/",
-		Secure:   false,
-		Expires:  time.Now().Add(7 * 24 * time.Hour),
-	})
-
-	return redirectWithUserData(c, oauthData)
-}
-
-func (ctrl *Controller) GoogleLogin(c *fiber.Ctx) error {
-	googleConfig := utils.GoogleConfig()
-	url := googleConfig.AuthCodeURL("randomstate")
-	return c.Redirect(url, fiber.StatusSeeOther)
-}
-
-func (ctrl *Controller) GoogleCallback(c *fiber.Ctx) error {
-	state := c.Query("state")
-	if state != "randomstate" {
-		return redirectWithError(c, "States don't match")
-	}
-
-	code := c.Query("code")
-	if code == "" {
-		return redirectWithError(c, "No code provided")
-	}
-
-	googleConfig := utils.GoogleConfig()
-	token, err := googleConfig.Exchange(context.Background(), code)
-	if err != nil {
-		return redirectWithError(c, "Code-token exchange failed")
-	}
-
-	req, _ := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
-	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return redirectWithError(c, "Failed to fetch user data")
-	}
-	defer resp.Body.Close()
-
-	userData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return redirectWithError(c, "Failed to read user data")
-	}
-
-	var googleUser GoogleUser
-	if err := json.Unmarshal(userData, &googleUser); err != nil {
-		return redirectWithError(c, "Failed to parse Google user data")
-	}
-
-	oauthData := OAuthUserData{
-		Provider:   "google",
-		ProviderId: googleUser.ID,
-		Email:      googleUser.Email,
-		FullName:   googleUser.Name,
-		AvatarURL:  googleUser.Picture,
-	}
-
-	jwtPaylod, err := ctrl.OauthLogin(&oauthData, c)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
-	NewAccessToken, err := utils.CreateAccessToken(jwtPaylod)
-	if err != nil {
-		fmt.Println("issue while generating access token")
-	}
-
-	NewRefreshToken, err := utils.CreateRefreshToken(jwtPaylod)
-	if err != nil {
-		fmt.Println("issue while generating refresh token")
-	}
-
-	c.Cookie(&fiber.Cookie{
-		Name:     "accessToken",
-		Value:    NewAccessToken,
-		HTTPOnly: true,
-		Path:     "/",
-		Secure:   false, // true in production env
-		Expires:  time.Now().Add(15 * time.Minute),
-	})
-
-	c.Cookie(&fiber.Cookie{
-		Name:     "refreshToken",
-		Value:    NewRefreshToken,
-		HTTPOnly: true,
-		Path:     "/",
-		Secure:   false,
-		Expires:  time.Now().Add(7 * 24 * time.Hour),
-	})
-
-	return redirectWithUserData(c, oauthData)
-}
-
-func redirectWithUserData(c *fiber.Ctx, data OAuthUserData) error {
-	jsonData, _ := json.Marshal(data)
-	encodedData := url.QueryEscape(string(jsonData))
-	redirectURL := fmt.Sprintf("http://localhost:5173/oauth/callback?data=%s", encodedData)
-	return c.Redirect(redirectURL, fiber.StatusSeeOther)
-}
-
-func redirectWithError(c *fiber.Ctx, errMsg string) error {
-	encodedError := url.QueryEscape(errMsg)
-	redirectURL := fmt.Sprintf("http://localhost:5173/oauth/callback?error=%s", encodedError)
-	return c.Redirect(redirectURL, fiber.StatusSeeOther)
-}
-
-func (ctrl *Controller) GoogleLoginSas(c *fiber.Ctx) error {
-	callbackURL := c.Query("client_id")
-
-	csrfToken := uuid.New().String()
-
-	stateData := map[string]string{
-		"nonce":        csrfToken,
-		"callback_url": callbackURL,
-	}
-
-	if callbackURL != "" {
-		fmt.Println("Received callback URL:", callbackURL)
-		id, err := utils.StrToPgUUID(callbackURL)
-		if err != nil {
-			fmt.Println("Invalid callback URL:", callbackURL)
-			return redirectWithError(c, "Invalid callback URL")
-		}
-		data, err := ctrl.queries.GetOauthConfigData(c.Context(), id)
-		if err != nil {
-			fmt.Println("data:", data)
-			fmt.Println("Error fetching OAuth config data:", err)
-			return redirectWithError(c, "Failed to fetch OAuth config")
-		}
-	} else {
-		fmt.Println("No callback URL provided")
-	}
-	stateJSON, _ := json.Marshal(stateData)
-	encodedState := base64.StdEncoding.EncodeToString(stateJSON)
-
-	googleConfig := utils.GoogleConfig()
-	url := googleConfig.AuthCodeURL(encodedState)
-	return c.Redirect(url, fiber.StatusSeeOther)
-}
-
-func (ctrl *Controller) GoogleLoginCallbackSas(c *fiber.Ctx) error {
-	fmt.Println("Received Google OAuth callback with query:", c.Query("state"), c.Query("code"))
-	stateJSON, _ := base64.StdEncoding.DecodeString(c.Query("state"))
-	var stateData map[string]string
-	json.Unmarshal(stateJSON, &stateData)
-
-	callbackURL := stateData["callback_url"]
-
-	code := c.Query("code")
-	if code == "" {
-		return redirectWithError(c, "No code provided")
-	}
-
-	googleConfig := utils.GoogleConfig()
-	token, err := googleConfig.Exchange(context.Background(), code)
-	if err != nil {
-		return redirectWithError(c, "Code-token exchange failed")
-	}
-
-	req, _ := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
-	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return redirectWithError(c, "Failed to fetch user data")
-	}
-	defer resp.Body.Close()
-
-	userData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return redirectWithError(c, "Failed to read user data")
-	}
-
-	var googleUser GoogleUser
-	if err := json.Unmarshal(userData, &googleUser); err != nil {
-		return redirectWithError(c, "Failed to parse Google user data")
-	}
-
-	oauthData := OAuthUserData{
-		Provider:   "google",
-		ProviderId: googleUser.ID,
-		Email:      googleUser.Email,
-		FullName:   googleUser.Name,
-		AvatarURL:  googleUser.Picture,
-	}
-
-	if callbackURL != "" {
-		return c.Status(200).JSON(fiber.Map{
-			"message":     "Google OAuth successful",
-			"data":        oauthData,
-			"full":        googleUser,
-			"callbackURL": callbackURL,
-		})
-	}
-
-	jwtPaylod, err := ctrl.OauthLogin(&oauthData, c)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
 
 	NewAccessToken, err := utils.CreateAccessToken(jwtPaylod)
 	if err != nil {

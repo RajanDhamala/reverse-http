@@ -45,7 +45,7 @@ INSERT INTO app_configs (id,app_name ,endpoint,configs,user_id) VALUES ($1, $2, 
 SELECT * FROM app_configs WHERE user_id = $1 ORDER BY created_at DESC;
 
 -- name: GetAppConfigByID :one
-SELECT * FROM app_configs WHERE id = $1 AND user_id = $2;
+SELECT id,app_name,endpoint,configs,updated_at FROM app_configs WHERE id = $1;
 
 -- name: UpdateAppConfig :one
 UPDATE app_configs SET
@@ -56,7 +56,7 @@ WHERE id = $1 AND user_id = $2
 RETURNING *;
 
 -- name: CreteOauthConfig :one
-INSERT INTO oauth_configs (id,key,endpoint,user_id) VALUES($1,$2,$3,$4) RETURNING *;
+INSERT INTO oauth_configs (id,key,endpoint,user_id,client_secret ) VALUES($1,$2,$3,$4,$5) RETURNING *;
 
 -- name: GetOauthConfigData :one
 SELECT * from oauth_configs WHERE id=$1 ;

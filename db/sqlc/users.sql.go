@@ -115,14 +115,15 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const creteOauthConfig = `-- name: CreteOauthConfig :one
-INSERT INTO oauth_configs (id,key,endpoint,user_id) VALUES($1,$2,$3,$4) RETURNING id, key, endpoint, user_id, created_at, updated_at
+INSERT INTO oauth_configs (id,key,endpoint,user_id,client_secret ) VALUES($1,$2,$3,$4,$5) RETURNING id, key, client_secret, endpoint, user_id, created_at, updated_at
 `
 
 type CreteOauthConfigParams struct {
-	ID       pgtype.UUID `json:"id"`
-	Key      string      `json:"key"`
-	Endpoint string      `json:"endpoint"`
-	UserID   pgtype.UUID `json:"user_id"`
+	ID           pgtype.UUID `json:"id"`
+	Key          string      `json:"key"`
+	Endpoint     string      `json:"endpoint"`
+	UserID       pgtype.UUID `json:"user_id"`
+	ClientSecret string      `json:"client_secret"`
 }
 
 func (q *Queries) CreteOauthConfig(ctx context.Context, arg CreteOauthConfigParams) (OauthConfig, error) {
@@ -131,11 +132,13 @@ func (q *Queries) CreteOauthConfig(ctx context.Context, arg CreteOauthConfigPara
 		arg.Key,
 		arg.Endpoint,
 		arg.UserID,
+		arg.ClientSecret,
 	)
 	var i OauthConfig
 	err := row.Scan(
 		&i.ID,
 		&i.Key,
+		&i.ClientSecret,
 		&i.Endpoint,
 		&i.UserID,
 		&i.CreatedAt,
@@ -159,24 +162,25 @@ func (q *Queries) DeleteOauthConfig(ctx context.Context, arg DeleteOauthConfigPa
 }
 
 const getAppConfigByID = `-- name: GetAppConfigByID :one
-SELECT id, app_name, endpoint, configs, user_id, created_at, updated_at FROM app_configs WHERE id = $1 AND user_id = $2
+SELECT id,app_name,endpoint,configs,updated_at FROM app_configs WHERE id = $1
 `
 
-type GetAppConfigByIDParams struct {
-	ID     pgtype.UUID `json:"id"`
-	UserID pgtype.UUID `json:"user_id"`
+type GetAppConfigByIDRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	AppName   string             `json:"app_name"`
+	Endpoint  string             `json:"endpoint"`
+	Configs   []byte             `json:"configs"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
-func (q *Queries) GetAppConfigByID(ctx context.Context, arg GetAppConfigByIDParams) (AppConfig, error) {
-	row := q.db.QueryRow(ctx, getAppConfigByID, arg.ID, arg.UserID)
-	var i AppConfig
+func (q *Queries) GetAppConfigByID(ctx context.Context, id pgtype.UUID) (GetAppConfigByIDRow, error) {
+	row := q.db.QueryRow(ctx, getAppConfigByID, id)
+	var i GetAppConfigByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.AppName,
 		&i.Endpoint,
 		&i.Configs,
-		&i.UserID,
-		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -215,7 +219,7 @@ func (q *Queries) GetAppConfigs(ctx context.Context, userID pgtype.UUID) ([]AppC
 }
 
 const getOauthConfigData = `-- name: GetOauthConfigData :one
-SELECT id, key, endpoint, user_id, created_at, updated_at from oauth_configs WHERE id=$1
+SELECT id, key, client_secret, endpoint, user_id, created_at, updated_at from oauth_configs WHERE id=$1
 `
 
 func (q *Queries) GetOauthConfigData(ctx context.Context, id pgtype.UUID) (OauthConfig, error) {
@@ -224,6 +228,7 @@ func (q *Queries) GetOauthConfigData(ctx context.Context, id pgtype.UUID) (Oauth
 	err := row.Scan(
 		&i.ID,
 		&i.Key,
+		&i.ClientSecret,
 		&i.Endpoint,
 		&i.UserID,
 		&i.CreatedAt,
@@ -492,7 +497,7 @@ UPDATE oauth_configs SET
     endpoint = COALESCE($3, endpoint),
     key = COALESCE($4, key)
 WHERE id=$1 AND user_id=$2 
-RETURNING id, key, endpoint, user_id, created_at, updated_at
+RETURNING id, key, client_secret, endpoint, user_id, created_at, updated_at
 `
 
 type UpdateOauthConfigParams struct {
@@ -513,6 +518,7 @@ func (q *Queries) UpdateOauthConfig(ctx context.Context, arg UpdateOauthConfigPa
 	err := row.Scan(
 		&i.ID,
 		&i.Key,
+		&i.ClientSecret,
 		&i.Endpoint,
 		&i.UserID,
 		&i.CreatedAt,

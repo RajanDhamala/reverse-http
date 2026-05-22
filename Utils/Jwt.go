@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -14,11 +13,21 @@ import (
 var (
 	RefreshSecret = []byte("refresh-key")
 	AccessSecret  = []byte("access-key")
+	OauthSecret   = []byte("oauth-key")
 )
 
 type UserJWT struct {
 	Username string
 	Id       string
+}
+
+type OauthJwt struct {
+	ProviderId   string
+	Username     string
+	Email        string
+	ProviderName string
+	Avatar       string
+	UUID         string
 }
 
 func CreateAccessToken(data *UserJWT) (string, error) {
@@ -31,6 +40,22 @@ func CreateAccessToken(data *UserJWT) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(AccessSecret)
+}
+
+func CreateOauthToken(data OauthJwt, secret string) (string, error) {
+	claims := jwt.MapClaims{
+		"provider_id":   data.ProviderId,
+		"username":      data.Username,
+		"email":         data.Email,
+		"provider_name": data.ProviderName,
+		"avatar":        data.Avatar,
+		"exp":           time.Now().Add(15 * time.Minute).Unix(),
+		"iat":           time.Now().Unix(),
+		"uuid":          data.UUID,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
 }
 
 func CreateRefreshToken(data *UserJWT) (string, error) {

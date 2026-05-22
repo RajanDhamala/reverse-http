@@ -1,26 +1,10 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Edit,
-  Globe2,
-  KeyRound,
-  Loader2,
-  Network,
-  Plus,
-  Route,
-  Save,
-  Search,
-  ServerCog,
-  Settings2,
-  ShieldCheck,
-  Tag,
-  X,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Edit, Globe2, KeyRound, Loader2, Network, Plus, Route, Save, Search, ServerCog, Settings2, ShieldCheck, Tag, X } from "lucide-react";
 
 interface ReverseHttpReq {
+  client_secret: string;
   name: string;
   endpoint: string;
 }
@@ -35,6 +19,7 @@ interface Config {
 }
 
 interface EditState {
+  client_secret?: string;
   id: string;
   key: string;
   endpoint: string;
@@ -101,11 +86,10 @@ function NoticeBanner({ notice }: { notice: Notice }) {
 
   return (
     <div
-      className={`mb-4 flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-lg shadow-black/20 ${
-        isSuccess
-          ? "border-neutral-700 bg-neutral-900 text-neutral-100"
-          : "border-red-950/70 bg-red-950/20 text-red-200"
-      }`}
+      className={`mb-4 flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-lg shadow-black/20 ${isSuccess
+        ? "border-neutral-700 bg-neutral-900 text-neutral-100"
+        : "border-red-950/70 bg-red-950/20 text-red-200"
+        }`}
       role="status"
       aria-live="polite"
     >
@@ -123,6 +107,7 @@ const AddRoute = () => {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [endpoint, setEndpoint] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
   const [editedConfig, setEditConfig] = useState<EditState>({
     id: "",
     key: "",
@@ -146,6 +131,7 @@ const AddRoute = () => {
       });
       setName("");
       setEndpoint("");
+      setClientSecret("");
     },
     onError: (error) => {
       setNotice({
@@ -188,6 +174,7 @@ const AddRoute = () => {
     createRouteMutation.mutate({
       name: trimmedName,
       endpoint: trimmedEndpoint,
+      client_secret: clientSecret.trim(),
     });
   };
 
@@ -275,6 +262,20 @@ const AddRoute = () => {
                   value={endpoint}
                   onChange={(event) => setEndpoint(event.target.value)}
                   placeholder="http://192.168.x.x:3000/oauth/callback"
+                  className={fieldClass}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>
+                  <Tag className="h-3.5 w-3.5" aria-hidden="true" />
+                  Client secret
+                </label>
+                <input
+                  type="text"
+                  value={clientSecret}
+                  onChange={(event) => setClientSecret(event.target.value)}
+                  placeholder="secrete key"
                   className={fieldClass}
                 />
               </div>

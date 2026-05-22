@@ -2,7 +2,6 @@ package controller
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -70,31 +69,32 @@ func (ctrl *Controller) GetAppConfig(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
 	}
 
-	usrData := c.Locals("user").(*utils.UserJWT)
-	userId, err := utils.StrToPgUUID(usrData.Id)
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid user id"})
-	}
-
-	data, err := ctrl.queries.GetAppConfigByID(c.Context(), db.GetAppConfigByIDParams{
-		ID:     appId,
-		UserID: userId,
-	})
+	data, err := ctrl.queries.GetAppConfigByID(c.Context(), appId)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "no appConfig found"})
 	}
 
-	return c.Status(200).JSON(fiber.Map{"data": data})
+	var reponseData map[string]any
+
+	err = json.Unmarshal(data.Configs, &reponseData)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to parse configs"})
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"id":         data.ID,
+		"app_name":   data.AppName,
+		"endpoint":   data.Endpoint,
+		"updated_at": data.UpdatedAt,
+		"config":     reponseData,
+	})
 }
 
 type AppResponse struct {
-	ID        string         `json:"id"`
-	AppName   string         `json:"app_name"`
-	Endpoint  string         `json:"endpoint"`
-	Configs   map[string]any `json:"configs"`
-	UserID    string         `json:"user_id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	ID       string         `json:"id"`
+	AppName  string         `json:"app_name"`
+	Endpoint string         `json:"endpoint"`
+	Configs  map[string]any `json:"configs"`
 }
 
 func (ctrl *Controller) GetOwnerConfigs(c *fiber.Ctx) error {
@@ -123,15 +123,11 @@ func (ctrl *Controller) GetOwnerConfigs(c *fiber.Ctx) error {
 		}
 
 		response := AppResponse{
-			ID:        app.ID.String(),
-			AppName:   app.AppName,
-			Endpoint:  app.Endpoint,
-			Configs:   config,
-			UserID:    app.UserID.String(),
-			CreatedAt: app.CreatedAt.Time,
-			UpdatedAt: app.UpdatedAt.Time,
+			ID:       app.ID.String(),
+			AppName:  app.AppName,
+			Endpoint: app.Endpoint,
+			Configs:  config,
 		}
-
 		responses = append(responses, response)
 	}
 

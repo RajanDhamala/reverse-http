@@ -28,6 +28,7 @@ CREATE INDEX idx_app_configs_user_id ON app_configs(user_id);
 CREATE TABLE oauth_configs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     key TEXT NOT NULL UNIQUE,
+    client_secret TEXT NOT NULL,
     endpoint TEXT NOT NULL,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

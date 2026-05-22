@@ -20,7 +20,7 @@ func AppConfigRouter(app *fiber.App, ctrl *controller.Controller) {
 
 	AppConfigRouter.Get("/allConfigs", middleware.AuthUser, ctrl.GetOwnerConfigs)
 
-	AppConfigRouter.Get("/config/:id", middleware.AuthUser, ctrl.GetAppConfig)
+	AppConfigRouter.Get("/config/:id", ctrl.GetAppConfig)
 
 	AppConfigRouter.Patch("/update", middleware.AuthUser, ctrl.EditOwnerConfig)
 

@@ -13,8 +13,9 @@ import (
 )
 
 type ReverseHttpReq struct {
-	Name     string `json:"name"`
-	Endpoint string `json:"endpoint"`
+	Name         string `json:"name"`
+	Endpoint     string `json:"endpoint"`
+	ClientSecret string `json:"client_secret"`
 }
 
 type UpdateConfigReq struct {
@@ -57,9 +58,10 @@ func (ctrl *Controller) CreateReverseRoute(c *fiber.Ctx) error {
 			Bytes: paramId,
 			Valid: true,
 		},
-		Key:      data.Name,
-		Endpoint: data.Endpoint,
-		UserID:   userId,
+		Key:          data.Name,
+		Endpoint:     data.Endpoint,
+		UserID:       userId,
+		ClientSecret: data.ClientSecret,
 	})
 	if err != nil {
 		fmt.Println("error while calling db", err)
@@ -150,4 +152,10 @@ func (ctrl *Controller) UpdateConfig(c *fiber.Ctx) error {
 	}
 
 	return c.Status(200).JSON(fiber.Map{"message": "successfully updated the config"})
+}
+
+func (ctrl *Controller) OauthCallbackSash(c *fiber.Ctx) error {
+	return c.Status(200).JSON(fiber.Map{
+		"message": "oauth callback hit",
+	})
 }

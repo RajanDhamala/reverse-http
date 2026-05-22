@@ -17,7 +17,7 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreteOauthConfig(ctx context.Context, arg CreteOauthConfigParams) (OauthConfig, error)
 	DeleteOauthConfig(ctx context.Context, arg DeleteOauthConfigParams) error
-	GetAppConfigByID(ctx context.Context, arg GetAppConfigByIDParams) (AppConfig, error)
+	GetAppConfigByID(ctx context.Context, id pgtype.UUID) (GetAppConfigByIDRow, error)
 	GetAppConfigs(ctx context.Context, userID pgtype.UUID) ([]AppConfig, error)
 	GetOauthConfigData(ctx context.Context, id pgtype.UUID) (OauthConfig, error)
 	GetOauthList(ctx context.Context, userID pgtype.UUID) ([]GetOauthListRow, error)
