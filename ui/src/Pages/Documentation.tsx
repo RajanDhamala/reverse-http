@@ -171,7 +171,7 @@ function SectionTitle({
   text: string;
 }) {
   return (
-    <div className="mb-8 max-w-3xl">
+    <div className="mb-8 max-w-3xl min-w-0">
       <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 text-xs text-neutral-500">
         {icon}
         {label}
@@ -230,7 +230,7 @@ function CodeBlock({
   onCopy?: () => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-neutral-800 bg-black">
+    <div className="w-full min-w-0 overflow-hidden rounded-xl border border-neutral-800 bg-black">
       {onCopy ? (
         <div className="flex items-center justify-end border-b border-neutral-800 bg-neutral-950 px-3 py-2">
           <button
@@ -247,7 +247,7 @@ function CodeBlock({
           </button>
         </div>
       ) : null}
-      <pre className="max-h-[520px] overflow-auto p-4 font-mono text-xs leading-6 text-neutral-300">
+      <pre className="max-h-[520px] w-full min-w-0 overflow-auto p-4 font-mono text-xs leading-6 text-neutral-300">
         <code>{highlightCode(code)}</code>
       </pre>
     </div>
@@ -256,11 +256,11 @@ function CodeBlock({
 
 function FlowDiagram() {
   return (
-    <div className={panelClass + " rounded-xl p-4 md:p-5"}>
-      <div className="grid gap-3 lg:grid-cols-4">
+    <div className={panelClass + " min-w-0 rounded-xl p-4 md:p-5"}>
+      <div className="grid min-w-0 gap-3 lg:grid-cols-4">
         {flowSteps.map((step, index) => (
-          <div key={step.title} className="relative">
-            <div className={softPanel + " h-full p-4"}>
+          <div key={step.title} className="relative min-w-0">
+            <div className={softPanel + " h-full min-w-0 p-4"}>
               <div className="mb-4 flex items-center justify-between">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-900 text-neutral-300">
                   {step.icon}
@@ -301,9 +301,9 @@ function LanguageCodePanel() {
   };
 
   return (
-    <div className={panelClass + " rounded-xl p-4 md:p-5"}>
+    <div className={panelClass + " min-w-0 rounded-xl p-4 md:p-5"}>
       <div className="mb-4 flex flex-col gap-3 border-b border-neutral-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-semibold text-neutral-100">
             <Code2 className="h-4 w-4" aria-hidden="true" />
             Verify callback token
@@ -344,12 +344,12 @@ function LanguageCodePanel() {
 
 export default function DocumentationPage() {
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100">
+    <main className="min-h-screen overflow-x-hidden bg-neutral-950 text-neutral-100">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:48px_48px]" />
 
       <section className="border-b border-neutral-900 px-4 py-10 md:px-8 md:py-16">
-        <div className="mx-auto grid w-full max-w-7xl gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          <div>
+        <div className="mx-auto grid w-full max-w-7xl min-w-0 gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          <div className="min-w-0">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 text-xs text-neutral-500">
               <Network className="h-3.5 w-3.5" aria-hidden="true" />
               Local OAuth for development
@@ -376,7 +376,7 @@ export default function DocumentationPage() {
             </div>
           </div>
 
-          <div className={panelClass + " rounded-xl p-5"}>
+          <div className={panelClass + " min-w-0 rounded-xl p-5"}>
             <div className="mb-4 flex items-center justify-between border-b border-neutral-800 pb-3">
               <div className="flex items-center gap-2 text-sm font-medium text-neutral-100">
                 <Terminal className="h-4 w-4" aria-hidden="true" />
@@ -397,7 +397,7 @@ GET /oauth/github?client_id=<route_id>
       </section>
 
       <section className="px-4 py-12 md:px-8 md:py-16">
-        <div className="mx-auto w-full max-w-7xl">
+        <div className="mx-auto w-full max-w-7xl min-w-0">
           <SectionTitle
             icon={<Route className="h-3.5 w-3.5" aria-hidden="true" />}
             label="Flow"
@@ -409,8 +409,8 @@ GET /oauth/github?client_id=<route_id>
       </section>
 
       <section className="border-y border-neutral-900 bg-neutral-950 px-4 py-12 md:px-8 md:py-16">
-        <div className="mx-auto grid w-full max-w-7xl gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-          <div>
+        <div className="mx-auto grid w-full max-w-7xl min-w-0 gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+          <div className="min-w-0">
             <SectionTitle
               icon={<KeyRound className="h-3.5 w-3.5" aria-hidden="true" />}
               label="Setup"
@@ -419,9 +419,9 @@ GET /oauth/github?client_id=<route_id>
             />
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid min-w-0 gap-4 md:grid-cols-3">
             {setupSteps.map((step, index) => (
-              <div key={step.title} className={softPanel + " p-4"}>
+              <div key={step.title} className={softPanel + " min-w-0 p-4"}>
                 <p className="font-mono text-xs text-neutral-600">0{index + 1}</p>
                 <h3 className="mt-3 text-sm font-semibold text-neutral-100">
                   {step.title}
@@ -432,15 +432,15 @@ GET /oauth/github?client_id=<route_id>
               </div>
             ))}
 
-            <div className={softPanel + " p-4 md:col-span-3"}>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div>
+            <div className={softPanel + " min-w-0 p-4 md:col-span-3"}>
+              <div className="grid min-w-0 gap-3 md:grid-cols-2">
+                <div className="min-w-0">
                   <p className="text-xs text-neutral-500">Callback endpoint</p>
                   <p className="mt-2 break-all font-mono text-sm text-neutral-200">
                     http://192.168.1.44:3030/oauth/google
                   </p>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs text-neutral-500">OAuth start URL</p>
                   <p className="mt-2 break-all font-mono text-sm text-neutral-200">
                     /oauth/google?client_id=&lt;route_id&gt;
@@ -453,7 +453,7 @@ GET /oauth/github?client_id=<route_id>
       </section>
 
       <section className="px-4 py-12 md:px-8 md:py-16">
-        <div className="mx-auto w-full max-w-7xl">
+        <div className="mx-auto w-full max-w-7xl min-w-0">
           <SectionTitle
             icon={<Braces className="h-3.5 w-3.5" aria-hidden="true" />}
             label="Payload"
@@ -461,17 +461,17 @@ GET /oauth/github?client_id=<route_id>
             text="The token is signed with your client secret. After verification, these are the fields your custom flow should use."
           />
 
-          <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className={panelClass + " rounded-xl p-5"}>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className={panelClass + " min-w-0 rounded-xl p-5"}>
               <div className="mb-4 flex items-center gap-2 text-sm font-medium text-neutral-100">
                 <LockKeyhole className="h-4 w-4" aria-hidden="true" />
                 Signed fields
               </div>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-2">
                 {payloadFields.map((field) => (
                   <div
                     key={field.key}
-                    className="rounded-lg border border-neutral-800 bg-neutral-950 p-3"
+                    className="min-w-0 rounded-lg border border-neutral-800 bg-neutral-950 p-3"
                   >
                     <p className="font-mono text-xs text-sky-300">{field.key}</p>
                     <p className="mt-1 text-xs font-medium text-neutral-200">
@@ -485,7 +485,7 @@ GET /oauth/github?client_id=<route_id>
               </div>
             </div>
 
-            <div className={panelClass + " rounded-xl p-5"}>
+            <div className={panelClass + " min-w-0 rounded-xl p-5"}>
               <div className="mb-4 flex items-center gap-2 text-sm font-medium text-neutral-100">
                 <Code2 className="h-4 w-4" aria-hidden="true" />
                 Decoded payload shape
@@ -497,7 +497,7 @@ GET /oauth/github?client_id=<route_id>
       </section>
 
       <section className="border-t border-neutral-900 bg-neutral-950 px-4 py-12 md:px-8 md:py-16">
-        <div className="mx-auto w-full max-w-7xl">
+        <div className="mx-auto w-full max-w-7xl min-w-0">
           <SectionTitle
             icon={<Github className="h-3.5 w-3.5" aria-hidden="true" />}
             label="Examples"

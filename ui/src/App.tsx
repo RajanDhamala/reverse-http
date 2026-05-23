@@ -8,6 +8,7 @@ import Loader from "./LazyLoading/Loader.tsx";
 import { Toaster } from "react-hot-toast";
 import Navbar from "./components/Navbar";
 import { type AuthUser, useUserStore } from "./Zustand/userStore.ts";
+import Error404Page from "./Pages/404ErrorPage.tsx";
 function App() {
   const { setUser, clearUser, setAuthLoading } = useUserStore();
 
@@ -75,14 +76,7 @@ function App() {
             <Route path="/reverse" element={<LazyUpdateConfig />} />
             <Route path="/oauth" element={<LazyUpdateConfig />} />
             <Route path="/app" element={<LazyAppConfig />} />
-            <Route
-              path="*"
-              element={
-                <div className="p-10 text-center text-red-500 font-bold">
-                  404 | Page Not Found
-                </div>
-              }
-            />
+            <Route path="*" element={<Error404Page />} />
           </Routes>
         </Suspense>
       </Router>

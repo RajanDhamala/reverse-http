@@ -207,7 +207,7 @@ function Workflow() {
           </p>
         </div>
 
-        <div className={panelClass + " rounded-xl p-5"}>
+        <div className={panelClass + " min-w-0 rounded-xl p-5"}>
           <div className="mb-4 flex items-center justify-between border-b border-neutral-800 pb-3">
             <div className="flex items-center gap-2 text-sm font-medium text-neutral-100">
               <Code2 className="h-4 w-4" aria-hidden="true" />
@@ -217,8 +217,8 @@ function Workflow() {
               startup
             </span>
           </div>
-          <pre className="overflow-auto rounded-lg border border-neutral-800 bg-black p-4 font-mono text-xs leading-6 shadow-inner shadow-emerald-950/20">
-            <code>
+          <pre className="max-w-full overflow-x-auto overflow-y-hidden rounded-lg border border-neutral-800 bg-black p-4 font-mono text-xs leading-6 shadow-inner shadow-emerald-950/20">
+            <code className="block w-max min-w-full">
               <span className={jsonPunctuationClass}>{`{\n`}</span>
               <span className={jsonKeyClass}>{`  "apiBaseUrl"`}</span>
               <span className={jsonPunctuationClass}>{`: `}</span>

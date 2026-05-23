@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Code2,
   ClipboardPaste,
+  Copy,
   Database,
   Eye,
   FileJson,
@@ -124,6 +125,10 @@ function pickConfigs(cfg: ConfigRecord) {
 function shortId(id: string) {
   if (!id) return "No id";
   return id.length > 10 ? `${id.slice(0, 8)}..` : id;
+}
+
+function getAppConfigUrl(id: string) {
+  return `http://localhost:3000/app/config/${id}`;
 }
 
 type Toast = { kind: "success" | "error"; text: string } | null;
@@ -290,10 +295,10 @@ function JsonPreview({
     <pre
       className={cx(
         minHeight,
-        "w-full overflow-auto rounded-lg border border-neutral-800 bg-black px-3 py-3 font-mono text-xs leading-5 text-neutral-400 outline-none"
+        "max-h-[70vh] w-full max-w-full overflow-auto rounded-lg border border-neutral-800 bg-black px-3 py-3 font-mono text-xs leading-5 text-neutral-400 outline-none"
       )}
     >
-      <code>{highlightJson(value)}</code>
+      <code className="block min-w-max">{highlightJson(value)}</code>
     </pre>
   );
 }
@@ -404,6 +409,7 @@ export default function AppConfig() {
   const [listToast, setListToast] = useState<Toast>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [copiedConfigKey, setCopiedConfigKey] = useState<string | null>(null);
 
   // CREATE
   const [createToast, setCreateToast] = useState<Toast>(null);
@@ -463,7 +469,6 @@ export default function AppConfig() {
     if (configsQuery.isError && tab === "list") {
       showToast(setListToast, { kind: "error", text: "Failed to load configs." });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configsQuery.isError, tab]);
 
   const createConfigMutation = useMutation({
@@ -646,6 +651,21 @@ export default function AppConfig() {
     deleteConfigMutation.mutate(id);
   }
 
+  function copyConfigUrl(id: string, copiedKey: string) {
+    console.log(getAppConfigUrl(id))
+    void navigator.clipboard.writeText(getAppConfigUrl(id)).then(() => {
+      setCopiedConfigKey(copiedKey);
+      window.setTimeout(() => {
+        setCopiedConfigKey((current) =>
+          current === copiedKey ? null : current
+        );
+
+        setOpenMenuId(null);
+      }, 1800);
+
+    });
+  }
+
   function switchEditMode(mode: EditorMode) {
     if (mode === eEditorMode) return;
     if (mode === "json") {
@@ -807,6 +827,7 @@ export default function AppConfig() {
                       const keys = Object.keys(pickConfigs(cfg)).length;
                       const actionKey = id || `row-${idx}`;
                       const menuDropsUp = idx === configs.length - 1;
+                      const isConfigUrlCopied = copiedConfigKey === actionKey;
 
                       return (
                         <div
@@ -933,6 +954,23 @@ export default function AppConfig() {
                                       >
                                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                                         Delete
+                                      </button>
+                                      <button
+                                        onClick={() => copyConfigUrl(id, actionKey)}
+                                        type="button"
+                                        className={cx(
+                                          "flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-medium transition",
+                                          isConfigUrlCopied
+                                            ? "bg-emerald-950/30 text-emerald-200"
+                                            : "text-neutral-300 hover:bg-neutral-900 hover:text-white"
+                                        )}
+                                      >
+                                        {isConfigUrlCopied ? (
+                                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                        ) : (
+                                          <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                                        )}
+                                        {isConfigUrlCopied ? "Copied" : "Copy"}
                                       </button>
                                     </>
                                   )}
@@ -1116,7 +1154,7 @@ export default function AppConfig() {
         )}
 
         {tab === "edit" && (
-          <div className={cx(panelClass, "rounded-xl p-5 md:p-6")}>
+          <div className={cx(panelClass, "min-w-0 max-w-full rounded-xl p-4 sm:p-5 md:p-6")}>
             <ToastBanner toast={editToast} />
             <SectionTitle
               icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
@@ -1124,17 +1162,17 @@ export default function AppConfig() {
               meta="Load by id or use edit from the registry"
             />
 
-            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+            <div className="min-w-0 max-w-full rounded-xl border border-neutral-800 bg-neutral-950 p-3 sm:p-4">
               <label className={labelClass}>
                 <Search className="h-3.5 w-3.5" aria-hidden="true" />
                 Config ID
               </label>
-              <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
                 <input
                   value={eId}
                   onChange={(e) => setEId(e.target.value)}
                   placeholder="paste config id"
-                  className={fieldClass}
+                  className={cx(fieldClass, "min-w-0 max-w-full")}
                 />
                 <button
                   type="button"
@@ -1158,10 +1196,10 @@ export default function AppConfig() {
             </div>
 
             {editFieldsVisible && (
-              <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
-                <div className="space-y-5">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
+              <div className="mt-5 grid min-w-0 max-w-full gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
+                <div className="min-w-0 max-w-full space-y-5">
+                  <div className="grid min-w-0 max-w-full gap-4 md:grid-cols-2">
+                    <div className="min-w-0">
                       <label className={labelClass}>
                         <Database className="h-3.5 w-3.5" aria-hidden="true" />
                         App name
@@ -1169,10 +1207,10 @@ export default function AppConfig() {
                       <input
                         value={eName}
                         onChange={(e) => setEName(e.target.value)}
-                        className={fieldClass}
+                        className={cx(fieldClass, "min-w-0 max-w-full")}
                       />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <label className={labelClass}>
                         <Globe2 className="h-3.5 w-3.5" aria-hidden="true" />
                         Endpoint
@@ -1180,18 +1218,53 @@ export default function AppConfig() {
                       <input
                         value={eEndpoint}
                         onChange={(e) => setEEndpoint(e.target.value)}
-                        className={fieldClass}
+                        className={cx(fieldClass, "min-w-0 max-w-full")}
                       />
+                    </div>
+                    <div className="min-w-0 md:col-span-2">
+                      <label className={labelClass}>
+                        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                        Config URL
+                      </label>
+                      <div className="relative">
+                        <input
+                          value={getAppConfigUrl(eId.trim())}
+                          readOnly
+                          className={cx(
+                            fieldClass,
+                            "min-w-0 max-w-full cursor-default pr-10 font-mono text-neutral-400"
+                          )}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => copyConfigUrl(eId.trim(), "edit-config-url")}
+                          disabled={!eId.trim()}
+                          className={cx(
+                            "absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md transition hover:bg-neutral-900 hover:text-neutral-100 disabled:cursor-not-allowed disabled:opacity-40",
+                            copiedConfigKey === "edit-config-url"
+                              ? "text-emerald-300"
+                              : "text-neutral-500"
+                          )}
+                          aria-label="Copy config URL"
+                          title="Copy config URL"
+                        >
+                          {copiedConfigKey === "edit-config-url" ? (
+                            <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                          ) : (
+                            <Copy className="h-4 w-4" aria-hidden="true" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                  <div className="min-w-0 max-w-full rounded-xl border border-neutral-800 bg-neutral-950 p-3 sm:p-4">
+                    <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-800 bg-black text-neutral-400">
                           <Code2 className="h-4 w-4" aria-hidden="true" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-sm font-medium text-neutral-100">Payload editor</p>
                           <p className="text-xs text-neutral-600">
                             Switch between row editing and raw JSON
@@ -1231,8 +1304,8 @@ export default function AppConfig() {
 
                     {eEditorMode === "pairs" ? (
                       <div className="space-y-4">
-                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px]">
-                          <div>
+                        <div className="grid min-w-0 max-w-full gap-3 md:grid-cols-[minmax(0,1fr)_190px]">
+                          <div className="min-w-0 max-w-full">
                             <label className={labelClass}>
                               <ClipboardPaste className="h-3.5 w-3.5" aria-hidden="true" />
                               Paste more pairs
@@ -1242,7 +1315,7 @@ export default function AppConfig() {
                               onChange={(event) => setEImportText(event.target.value)}
                               placeholder={'client_id=abc\nclient_secret=xyz\n\nor paste a JSON object'}
                               rows={5}
-                              className="min-h-[126px] w-full resize-y rounded-lg border border-neutral-800 bg-black px-3 py-3 font-mono text-xs leading-5 text-neutral-300 outline-none transition placeholder:text-neutral-700 focus:border-neutral-500 focus:ring-2 focus:ring-neutral-600/20"
+                              className="min-h-[126px] min-w-0 w-full max-w-full resize-y overflow-auto rounded-lg border border-neutral-800 bg-black px-3 py-3 font-mono text-xs leading-5 text-neutral-300 outline-none transition placeholder:text-neutral-700 focus:border-neutral-500 focus:ring-2 focus:ring-neutral-600/20"
                             />
                             <button
                               type="button"
@@ -1270,7 +1343,7 @@ export default function AppConfig() {
                                 setEditToast
                               );
                             }}
-                            className="flex min-h-[126px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-neutral-700 bg-neutral-900/80 px-4 text-center transition hover:border-neutral-500 hover:bg-neutral-900"
+                            className="flex min-h-[126px] min-w-0 max-w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed border-neutral-700 bg-neutral-900/80 px-4 text-center transition hover:border-neutral-500 hover:bg-neutral-900"
                           >
                             <input
                               type="file"
@@ -1291,7 +1364,7 @@ export default function AppConfig() {
                             <span className="text-sm font-medium text-neutral-100">
                               Import file
                             </span>
-                            <span className="mt-1 text-xs leading-5 text-neutral-500">
+                            <span className="mt-1 max-w-full text-xs leading-5 text-neutral-500">
                               Adds or replaces matching keys
                             </span>
                           </label>
@@ -1307,7 +1380,7 @@ export default function AppConfig() {
                             {eKvPairs.map((kv, idx) => (
                               <div
                                 key={idx}
-                                className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_44px] gap-2 rounded-lg border border-neutral-900 bg-neutral-950/70 p-2"
+                                className="grid min-w-0 grid-cols-1 gap-2 rounded-lg border border-neutral-900 bg-neutral-950/70 p-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_44px]"
                               >
                                 <input
                                   value={kv.key}
@@ -1315,7 +1388,7 @@ export default function AppConfig() {
                                     updateEditKV(idx, "key", event.target.value)
                                   }
                                   placeholder="key"
-                                  className={fieldClass}
+                                  className={cx(fieldClass, "min-w-0 max-w-full")}
                                 />
                                 <input
                                   value={kv.value}
@@ -1323,16 +1396,17 @@ export default function AppConfig() {
                                     updateEditKV(idx, "value", event.target.value)
                                   }
                                   placeholder="value"
-                                  className={fieldClass}
+                                  className={cx(fieldClass, "min-w-0 max-w-full")}
                                 />
                                 <button
                                   type="button"
                                   onClick={() => removeEditKV(idx)}
-                                  className="inline-flex h-[42px] items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-500 transition hover:border-neutral-700 hover:text-neutral-100"
+                                  className="inline-flex h-[42px] w-full items-center justify-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-500 transition hover:border-neutral-700 hover:text-neutral-100"
                                   aria-label="Remove key"
                                   title="Remove key"
                                 >
                                   <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                  <span className="text-xs font-medium sm:sr-only">Remove</span>
                                 </button>
                               </div>
                             ))}
@@ -1358,14 +1432,14 @@ export default function AppConfig() {
                           value={eConfigsText}
                           onChange={(e) => setEConfigsText(e.target.value)}
                           rows={16}
-                          className="min-h-[360px] w-full resize-y rounded-lg border border-neutral-800 bg-black px-3 py-3 font-mono text-xs leading-5 text-neutral-300 outline-none focus:border-neutral-600"
+                          className="min-h-[360px] max-h-[70vh] min-w-0 w-full max-w-full resize-y overflow-auto rounded-lg border border-neutral-800 bg-black px-3 py-3 font-mono text-xs leading-5 text-neutral-300 outline-none focus:border-neutral-600"
                         />
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                <div className="min-w-0 max-w-full rounded-xl border border-neutral-800 bg-neutral-950 p-3 sm:p-4">
                   <label className={labelClass}>
                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                     Preview JSON

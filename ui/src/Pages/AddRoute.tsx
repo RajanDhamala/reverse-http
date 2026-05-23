@@ -149,7 +149,7 @@ const AddRoute = () => {
     client_secret: "",
   });
   const [isEditing, setIsEditing] = useState(false);
-  const [clientSecretLoaded, setClientSecretLoaded] = useState(false);
+  const [clientSecretDirty, setClientSecretDirty] = useState(false);
   const [createSecretVisible, setCreateSecretVisible] = useState(false);
   const [editSecretVisible, setEditSecretVisible] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -159,6 +159,13 @@ const AddRoute = () => {
   const configsQuery = useQuery({
     queryKey: ["reverse-http-list"],
     queryFn: fetchReverseConfigs,
+  });
+
+  const clientSecretQuery = useQuery({
+    queryKey: ["reverse-http-client-secret", editedConfig.id],
+    queryFn: () => fetchClientSecretById(editedConfig.id),
+    enabled: isEditing && Boolean(editedConfig.id),
+    staleTime: Infinity,
   });
 
   const createRouteMutation = useMutation({
@@ -183,10 +190,14 @@ const AddRoute = () => {
 
   const updateConfigMutation = useMutation({
     mutationFn: updateReverseConfig,
-    onSuccess: () => {
+    onSuccess: (_data, updatedConfig) => {
       void queryClient.invalidateQueries({ queryKey: ["reverse-http-list"] });
+      queryClient.setQueryData(
+        ["reverse-http-client-secret", updatedConfig.id],
+        { id: updatedConfig.id, client_secret: updatedConfig.client_secret }
+      );
       setIsEditing(false);
-      setClientSecretLoaded(false);
+      setClientSecretDirty(false);
       setNotice({ type: "success", text: "Configuration saved" });
       window.setTimeout(() => setNotice(null), 2500);
     },
@@ -194,28 +205,6 @@ const AddRoute = () => {
       setNotice({
         type: "error",
         text: error instanceof Error ? error.message : "Failed to update config",
-      });
-    },
-  });
-
-  const loadClientSecretMutation = useMutation({
-    mutationFn: fetchClientSecretById,
-    onSuccess: (data) => {
-      setEditConfig((current) =>
-        current.id === data.id
-          ? { ...current, client_secret: data.client_secret }
-          : current
-      );
-      setClientSecretLoaded(true);
-    },
-    onError: (error) => {
-      setClientSecretLoaded(false);
-      setNotice({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Failed to load client secret",
       });
     },
   });
@@ -248,6 +237,12 @@ const AddRoute = () => {
   const deletingId = deleteConfigMutation.isPending
     ? deleteConfigMutation.variables ?? null
     : null;
+  const isClientSecretLoading = clientSecretQuery.isFetching;
+  const clientSecretValue = clientSecretDirty
+    ? editedConfig.client_secret
+    : clientSecretQuery.data?.client_secret ?? editedConfig.client_secret;
+  const clientSecretReady =
+    clientSecretDirty || Boolean(clientSecretQuery.data) || Boolean(editedConfig.client_secret);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -276,16 +271,19 @@ const AddRoute = () => {
     setNotice(null);
     setOpenMenuId(null);
     setDeleteConfirmId(null);
-    setClientSecretLoaded(false);
+    setClientSecretDirty(false);
     setEditSecretVisible(false);
+    const cachedClientSecret = queryClient.getQueryData<{
+      id: string;
+      client_secret: string;
+    }>(["reverse-http-client-secret", item.id]);
     setEditConfig({
       id: item.id,
       key: item.key || item.name || "",
       endpoint: item.endpoint || "",
-      client_secret: "",
+      client_secret: cachedClientSecret?.client_secret ?? "",
     });
     setIsEditing(true);
-    loadClientSecretMutation.mutate(item.id);
   };
 
   const deleteConfig = (id: string) => {
@@ -628,6 +626,19 @@ const AddRoute = () => {
                                       <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                                       Delete
                                     </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        console.log("client id:", item.id)
+                                        console.log(` http://localhost:3000/oauth/google?client_id=${item.id}`)
+                                        navigator.clipboard.writeText(`http://localhost:3000/oauth/google?client_id=${item.id}`);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-medium text-red-200 transition hover:bg-red-950/30 hover:text-red-100"
+                                    >
+                                      <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                                      Copy
+                                    </button>
                                   </>
                                 )}
                               </div>
@@ -650,7 +661,7 @@ const AddRoute = () => {
           onClick={(event) => {
             if (event.target === event.currentTarget) {
               setIsEditing(false);
-              setClientSecretLoaded(false);
+              setClientSecretDirty(false);
             }
           }}
         >
@@ -673,7 +684,7 @@ const AddRoute = () => {
                 type="button"
                 onClick={() => {
                   setIsEditing(false);
-                  setClientSecretLoaded(false);
+                  setClientSecretDirty(false);
                 }}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-500 transition hover:border-neutral-600 hover:text-white"
                 aria-label="Close edit modal"
@@ -723,25 +734,26 @@ const AddRoute = () => {
                 <div className="relative">
                   <input
                     type={editSecretVisible ? "text" : "password"}
-                    value={editedConfig.client_secret}
-                    onChange={(event) =>
+                    value={clientSecretValue}
+                    onChange={(event) => {
+                      setClientSecretDirty(true);
                       setEditConfig({
                         ...editedConfig,
                         client_secret: event.target.value,
-                      })
-                    }
+                      });
+                    }}
                     placeholder={
-                      loadClientSecretMutation.isPending
+                      isClientSecretLoading
                         ? "Loading client secret"
                         : "Client secret"
                     }
-                    disabled={loadClientSecretMutation.isPending}
+                    disabled={isClientSecretLoading}
                     className={fieldClass + " pr-10 disabled:cursor-wait disabled:opacity-60"}
                   />
                   <button
                     type="button"
                     onClick={() => setEditSecretVisible((current) => !current)}
-                    disabled={loadClientSecretMutation.isPending}
+                    disabled={isClientSecretLoading}
                     className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-neutral-500 transition hover:bg-neutral-900 hover:text-neutral-100 disabled:cursor-wait disabled:opacity-50"
                     aria-label={
                       editSecretVisible
@@ -749,7 +761,7 @@ const AddRoute = () => {
                         : "Show client secret"
                     }
                   >
-                    {loadClientSecretMutation.isPending ? (
+                    {isClientSecretLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                     ) : editSecretVisible ? (
                       <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -758,9 +770,11 @@ const AddRoute = () => {
                     )}
                   </button>
                 </div>
-                {loadClientSecretMutation.isError ? (
+                {clientSecretQuery.isError ? (
                   <p className="mt-2 text-xs text-red-200">
-                    Could not load the client secret. Close and choose Edit again.
+                    {clientSecretQuery.error instanceof Error
+                      ? clientSecretQuery.error.message
+                      : "Could not load the client secret. Close and choose Edit again."}
                   </p>
                 ) : null}
               </div>
@@ -769,20 +783,25 @@ const AddRoute = () => {
             <div className="mt-5 flex gap-2 border-t border-neutral-800 pt-4">
               <button
                 type="button"
-                onClick={() => updateConfigMutation.mutate(editedConfig)}
+                onClick={() =>
+                  updateConfigMutation.mutate({
+                    ...editedConfig,
+                    client_secret: clientSecretValue,
+                  })
+                }
                 disabled={
                   updateConfigMutation.isPending ||
-                  loadClientSecretMutation.isPending ||
-                  !clientSecretLoaded
+                  isClientSecretLoading ||
+                  !clientSecretReady
                 }
                 className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-neutral-100 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {updateConfigMutation.isPending || loadClientSecretMutation.isPending ? (
+                {updateConfigMutation.isPending || isClientSecretLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
                   <Save className="h-4 w-4" aria-hidden="true" />
                 )}
-                {loadClientSecretMutation.isPending
+                {isClientSecretLoading
                   ? "Loading secret"
                   : updateConfigMutation.isPending
                     ? "Saving"
@@ -792,7 +811,7 @@ const AddRoute = () => {
                 type="button"
                 onClick={() => {
                   setIsEditing(false);
-                  setClientSecretLoaded(false);
+                  setClientSecretDirty(false);
                 }}
                 className="inline-flex h-10 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 px-4 text-sm font-medium text-neutral-300 transition hover:border-neutral-600 hover:text-white"
               >

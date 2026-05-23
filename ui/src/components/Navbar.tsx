@@ -100,11 +100,11 @@ function ProfileMenu({
   };
 
   return (
-    <div ref={menuRef} className="relative">
+    <div ref={menuRef} className="relative w-full md:w-auto">
       <button
         type="button"
         onClick={() => setIsOpen((current) => !current)}
-        className="flex min-w-0 items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 px-2 py-1 transition hover:border-neutral-600"
+        className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-neutral-800 bg-neutral-950 px-2 py-1 transition hover:border-neutral-600 md:w-auto md:justify-start"
         title={username}
         aria-label="Open profile menu"
         aria-expanded={isOpen}
@@ -133,7 +133,7 @@ function ProfileMenu({
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 mt-2 w-48 rounded-lg border border-neutral-800 bg-neutral-950 p-2 shadow-xl shadow-black/40">
+        <div className="absolute left-0 right-0 z-50 mt-2 rounded-lg border border-neutral-800 bg-neutral-950 p-2 shadow-xl shadow-black/40 md:left-auto md:w-48">
           <button
             type="button"
             onClick={handleLogout}
