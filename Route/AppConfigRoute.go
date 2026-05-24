@@ -1,8 +1,11 @@
 package route
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"reverse-http/Controller"
 	"reverse-http/Middleware"
 )
@@ -10,7 +13,12 @@ import (
 func AppConfigRouter(app *fiber.App, ctrl *controller.Controller) {
 	AppConfigRouter := app.Group("/app")
 
-	AppConfigRouter.Get("/", func(c *fiber.Ctx) error {
+	test := limiter.New(limiter.Config{
+		Max:        5,
+		Expiration: 10 * time.Minute,
+	})
+
+	AppConfigRouter.Get("/", test, func(c *fiber.Ctx) error {
 		data := make(map[string]string)
 		data["data"] = "app config route is up and running"
 		return c.Status(200).JSON(data)
