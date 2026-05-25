@@ -29,3 +29,5 @@ go.work.sum
 # .vscode/
 ui/node_modules
 ui/dist
+gomain
+node_modules/

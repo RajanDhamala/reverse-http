@@ -16,6 +16,7 @@ type Querier interface {
 	// internal/db/queries/users.sql
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreteOauthConfig(ctx context.Context, arg CreteOauthConfigParams) (OauthConfig, error)
+	DeleteAppConfig(ctx context.Context, arg DeleteAppConfigParams) error
 	DeleteOauthConfig(ctx context.Context, arg DeleteOauthConfigParams) error
 	GetAppConfigByID(ctx context.Context, id pgtype.UUID) (GetAppConfigByIDRow, error)
 	GetAppConfigs(ctx context.Context, userID pgtype.UUID) ([]AppConfig, error)

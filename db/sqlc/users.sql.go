@@ -147,6 +147,20 @@ func (q *Queries) CreteOauthConfig(ctx context.Context, arg CreteOauthConfigPara
 	return i, err
 }
 
+const deleteAppConfig = `-- name: DeleteAppConfig :exec
+DELETE FROM app_configs WHERE id=$1 AND user_id=$2
+`
+
+type DeleteAppConfigParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeleteAppConfig(ctx context.Context, arg DeleteAppConfigParams) error {
+	_, err := q.db.Exec(ctx, deleteAppConfig, arg.ID, arg.UserID)
+	return err
+}
+
 const deleteOauthConfig = `-- name: DeleteOauthConfig :exec
 DELETE FROM oauth_configs WHERE id=$1 AND user_id=$2
 `

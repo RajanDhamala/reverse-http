@@ -1,9 +1,13 @@
 package controller
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	redis "github.com/redis/go-redis/v9"
 	// "github.com/gofiber/fiber/v2/middleware/proxy"
 	"github.com/google/uuid"
 	"reverse-http/Utils"
@@ -71,6 +75,9 @@ func (ctrl *Controller) CreateReverseRoute(c *fiber.Ctx) error {
 		})
 	}
 
+	redisKey := "redirectList:" + userId.String()
+	ctrl.redisClient.Del(c.Context(), redisKey)
+
 	return c.Status(200).JSON(fiber.Map{
 		"message": "endpoint created succesfully",
 		"data":    payload,
@@ -96,33 +103,60 @@ func (ctrl *Controller) RedirectRequest(c *fiber.Ctx) error {
 	return c.Redirect(data.Endpoint, fiber.StatusTemporaryRedirect)
 }
 
+type UserRedirectList struct {
+	ID        string `json:"id"`
+	Key       string `json:"key"`
+	Endpoint  string `json:"endpoint"`
+	CreatedAt time.Time
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 func (ctrl *Controller) GetRedirectList(c *fiber.Ctx) error {
 	usrData := c.Locals("user").(*utils.UserJWT)
 	userId, err := utils.StrToPgUUID(usrData.Id)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"error": "invalid user id",
-		})
+		return c.Status(400).JSON(fiber.Map{"error": "invalid user id"})
 	}
 
-	type OauthConfigLite struct {
-		Id       uuid.UUID
-		Key      string
-		Endpoint string
-	}
+	var realResult []UserRedirectList
+	redisKey := "redirectList:" + userId.String()
+	response, errs := ctrl.redisClient.Get(c.Context(), redisKey).Result()
 
-	data, errr := ctrl.queries.GetOauthList(c.Context(), userId)
+	if errs == redis.Nil {
+		fmt.Println("cache miss")
+		data, err := ctrl.queries.GetOauthList(context.Background(), userId)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "no reverse endpoint set"})
+		}
 
-	if errr != nil {
-		fmt.Println("error while calling db")
-		return c.Status(400).JSON(fiber.Map{
-			"error": "no reverse endpoint set",
+		var res []UserRedirectList
+		for _, d := range data {
+			res = append(res, UserRedirectList{
+				ID:        d.ID.String(),
+				Key:       d.Key,
+				Endpoint:  d.Endpoint,
+				CreatedAt: d.CreatedAt.Time,
+				UpdatedAt: d.UpdatedAt.Time,
+			})
+		}
+		marshalled, _ := json.Marshal(res)
+		ctrl.redisClient.Set(context.Background(), redisKey, marshalled, 10*time.Minute)
+		realResult = res
+	} else if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"err": "internal redis server err",
 		})
+	} else {
+		if err := json.Unmarshal([]byte(response), &realResult); err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"err": "failed to serialize json",
+			})
+		}
 	}
 
 	return c.Status(200).JSON(fiber.Map{
-		"data":    data,
-		"message": "succesfully fetched reverse-http list",
+		"data":    realResult,
+		"message": "successfully fetched reverse-http list",
 	})
 }
 
@@ -150,6 +184,9 @@ func (ctrl *Controller) UpdateConfig(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "failed to update config"})
 	}
+
+	redisKey := "redirectList:" + userId.String()
+	ctrl.redisClient.Del(c.Context(), redisKey)
 
 	return c.Status(200).JSON(fiber.Map{"message": "successfully updated the config"})
 }
@@ -210,6 +247,8 @@ func (ctrl *Controller) DeleteOauthConfig(c *fiber.Ctx) error {
 			"message": "failed to delete oauth config",
 		})
 	}
+	redisKey := "redirectList:" + usrData.Id
+	ctrl.redisClient.Del(c.Context(), redisKey)
 
 	return c.Status(200).JSON(fiber.Map{
 		"message": "successfully deleted oauth config",

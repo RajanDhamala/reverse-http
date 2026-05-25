@@ -55,6 +55,9 @@ UPDATE app_configs SET
 WHERE id = $1 AND user_id = $2
 RETURNING *;
 
+-- name: DeleteAppConfig :exec
+DELETE FROM app_configs WHERE id=$1 AND user_id=$2;
+
 -- name: CreteOauthConfig :one
 INSERT INTO oauth_configs (id,key,endpoint,user_id,client_secret ) VALUES($1,$2,$3,$4,$5) RETURNING *;
 

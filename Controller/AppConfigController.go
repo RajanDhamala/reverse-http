@@ -1,9 +1,12 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
+
+	redis "github.com/redis/go-redis/v9"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -12,8 +15,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	db "reverse-http/db/sqlc"
-
-	redis "github.com/redis/go-redis/v9"
 )
 
 type AppConfigReq struct {
@@ -64,62 +65,74 @@ func (ctrl *Controller) AddAppConfig(c *fiber.Ctx) error {
 		})
 	}
 
-	ctrl.redisClient.Del(c.Context(), "ownerConfigs:"+usrData.Id)
+	redisKey := "ownerConfig:" + uId.String()
+	ctrl.redisClient.Del(c.Context(), redisKey)
 	return c.JSON(result)
+}
+
+type AppConfigResponse struct {
+	ID        string         `json:"id"`
+	AppName   string         `json:"app_name"`
+	Endpoint  string         `json:"endpoint"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	Config    map[string]any `json:"config"`
 }
 
 func (ctrl *Controller) GetAppConfig(c *fiber.Ctx) error {
 	appId, err := utils.StrToPgUUID(c.Params("id"))
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"error": "invalid id",
-		})
+		return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
 	}
 
-	cacheKey := "appConfig:" + appId.String()
-	response, err := ctrl.redisClient.Get(c.Context(), cacheKey).Result()
-	var data db.GetAppConfigByIDRow
+	var realdata AppConfigResponse
+	redisKey := "AppConfig:" + appId.String()
 
-	if err == redis.Nil {
-		data, err = ctrl.queries.GetAppConfigByID(c.Context(), appId)
-		if err != nil {
-			return c.Status(404).JSON(fiber.Map{
-				"error": "no app config found",
-			})
-		}
+	response, rediserr := ctrl.redisClient.Get(c.Context(), redisKey).Result()
 
-		jsonData, _ := json.Marshal(data)
-		ctrl.redisClient.Set(c.Context(), cacheKey, jsonData, 10*time.Minute)
+	if rediserr == redis.Nil {
+		fmt.Println("cache miss")
 
-	} else if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"error": "redis error",
+		result, err, shared := ctrl.sfGroup.Do(redisKey, func() (interface{}, error) {
+			data, err := ctrl.queries.GetAppConfigByID(context.Background(), appId)
+			if err != nil {
+				return nil, err
+			}
+
+			var configs map[string]any
+			if err = json.Unmarshal(data.Configs, &configs); err != nil {
+				return nil, err
+			}
+
+			res := AppConfigResponse{
+				ID:        data.ID.String(),
+				AppName:   data.AppName,
+				Endpoint:  data.Endpoint,
+				UpdatedAt: data.UpdatedAt.Time,
+				Config:    configs,
+			}
+
+			marshalled, _ := json.Marshal(res)
+			ctrl.redisClient.Set(context.Background(), redisKey, marshalled, 10*time.Minute)
+
+			return res, nil
 		})
+
+		fmt.Println("shared:", shared)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "no appConfig found"})
+		}
+		realdata = result.(AppConfigResponse)
+
+	} else if rediserr != nil {
+		fmt.Println("err during call timeout etc")
 	} else {
-
-		err = json.Unmarshal([]byte(response), &data)
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{
-				"error": "failed to parse cache",
-			})
-		}
-	}
-
-	var responseData map[string]any
-
-	err = json.Unmarshal(data.Configs, &responseData)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"error": "failed to parse configs",
-		})
+		fmt.Println("cache hit")
+		json.Unmarshal([]byte(response), &realdata)
 	}
 
 	return c.Status(200).JSON(fiber.Map{
-		"id":         data.ID,
-		"app_name":   data.AppName,
-		"endpoint":   data.Endpoint,
-		"updated_at": data.UpdatedAt,
-		"config":     responseData,
+		"data":    realdata,
+		"message": "successfully fetched data from db",
 	})
 }
 
@@ -132,62 +145,38 @@ type AppResponse struct {
 
 func (ctrl *Controller) GetOwnerConfigs(c *fiber.Ctx) error {
 	usrData := c.Locals("user").(*utils.UserJWT)
-
 	uId, _ := utils.StrToPgUUID(usrData.Id)
 
-	cacheKey := "ownerConfigs:" + uId.String()
-
-	cachedData, err := ctrl.redisClient.Get(c.Context(), cacheKey).Result()
-
 	var responses []AppResponse
-	if err == redis.Nil {
+	redisKey := "ownerConfig:" + uId.String()
+	response, errs := ctrl.redisClient.Get(c.Context(), redisKey).Result()
 
+	if errs == redis.Nil {
+		fmt.Println("cache miss")
 		data, err := ctrl.queries.GetAppConfigs(c.Context(), uId)
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{
-				"error": "no app config set",
+			return c.Status(400).JSON(fiber.Map{"error": "no app config set"})
+		}
+		for _, d := range data {
+			var configs map[string]any
+			json.Unmarshal(d.Configs, &configs)
+			responses = append(responses, AppResponse{
+				ID:       d.ID.String(),
+				AppName:  d.AppName,
+				Endpoint: d.Endpoint,
+				Configs:  configs,
 			})
 		}
-
-		for _, app := range data {
-			var config map[string]any
-			err := json.Unmarshal(app.Configs, &config)
-			if err != nil {
-				return c.Status(500).JSON(fiber.Map{
-					"error": "failed to parse configs",
-				})
-			}
-			response := AppResponse{
-				ID:       app.ID.String(),
-				AppName:  app.AppName,
-				Endpoint: app.Endpoint,
-				Configs:  config,
-			}
-			responses = append(responses, response)
-		}
-
-		jsonData, err := json.Marshal(responses)
+		marshalled, err := json.Marshal(responses)
 		if err == nil {
-			ctrl.redisClient.Set(
-				c.Context(),
-				cacheKey,
-				jsonData,
-				time.Minute*10,
-			)
+			ctrl.redisClient.Set(c.Context(), redisKey, marshalled, 10*time.Minute)
 		}
 
-	} else if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"error": "redis error",
-		})
+	} else if errs != nil {
+		fmt.Println("timeout etc stuff")
 	} else {
-
-		err = json.Unmarshal([]byte(cachedData), &responses)
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{
-				"error": "failed to parse cached data",
-			})
-		}
+		fmt.Println("cache hit")
+		json.Unmarshal([]byte(response), &responses)
 	}
 
 	return c.Status(200).JSON(fiber.Map{
@@ -245,14 +234,9 @@ func (ctrl *Controller) EditOwnerConfig(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "failed to update config"})
 	}
 
-	cacheKey := "ownerConfigs:" + usrData.Id
-	nextkey := "appConfig:" + usrData.Id
-
-	errs := ctrl.redisClient.Del(c.Context(), cacheKey, nextkey).Err()
-	if errs != nil {
-		fmt.Printf("failed to delete cache: %v\n", err)
-	}
-
+	redisKey := "AppConfig:" + cfgId.String()
+	ownKey := "ownerConfig:" + userId.String()
+	ctrl.redisClient.Del(c.Context(), redisKey, ownKey).Err()
 	return c.Status(200).JSON(fiber.Map{"message": "successfully updated app config"})
 }
 
@@ -268,20 +252,16 @@ func (ctrl *Controller) DeleteAppConfig(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid config id"})
 	}
 
-	errs := ctrl.queries.DeleteOauthConfig(c.Context(), db.DeleteOauthConfigParams{
+	errs := ctrl.queries.DeleteAppConfig(c.Context(), db.DeleteAppConfigParams{
 		ID:     cfgId,
 		UserID: userId,
 	})
 	if errs != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "failed to delete config"})
 	}
-	cacheKey := "ownerConfigs:" + cfgId.String()
-	nextkey := "appConfig:" + cfgId.String()
-
-	erres := ctrl.redisClient.Del(c.Context(), cacheKey, nextkey).Err()
-	if erres != nil {
-		fmt.Printf("failed to delete cache: %v\n", err)
-	}
+	redisKey := "AppConfig:" + cfgId.String()
+	ownKey := "ownerConfig:" + userId.String()
+	ctrl.redisClient.Del(c.Context(), redisKey, ownKey).Err()
 
 	return c.Status(200).JSON(fiber.Map{"message": "successfully deleted app config"})
 }
