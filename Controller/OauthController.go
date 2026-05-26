@@ -10,6 +10,10 @@ import (
 	"net/url"
 	"time"
 
+	// db "reverse-http/db/sqlc"
+
+	redis "github.com/redis/go-redis/v9"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
@@ -71,12 +75,27 @@ func (ctrl *Controller) GoogleLoginSas(c *fiber.Ctx) error {
 			fmt.Println("Invalid callback URL:", callbackURL)
 			return redirectWithError(c, "Invalid callback URL")
 		}
-		data, err := ctrl.queries.GetOauthConfigData(c.Context(), id)
-		if err != nil {
-			fmt.Println("data:", data)
-			fmt.Println("Error fetching OAuth config data:", err)
-			return redirectWithError(c, "Failed to fetch OAuth config")
+		rediskey := "oauthThing:" + id.String()
+		response, errs := ctrl.redisClient.Get(c.Context(), rediskey).Result()
+
+		if errs == redis.Nil {
+			fmt.Println("cache miss")
+			data, err := ctrl.queries.GetOauthConfigData(c.Context(), id)
+			if err != nil {
+				fmt.Println("data:", data)
+				fmt.Println("Error fetching OAuth config data:", err)
+				return redirectWithError(c, "Failed to fetch OAuth config")
+			}
+			jsondata, _ := json.Marshal(data)
+			err = ctrl.redisClient.Set(c.Context(), rediskey, jsondata, 5*time.Minute).Err()
+		} else if errs != nil {
+			fmt.Println("redis server error")
+			return redirectWithError(c, "internal redis server error")
+		} else {
+			fmt.Println("cache hit")
+			fmt.Println("cached data:", response)
 		}
+
 	} else {
 		fmt.Println("No callback URL provided")
 	}
@@ -105,12 +124,27 @@ func (ctrl *Controller) GithubLoginSas(c *fiber.Ctx) error {
 			fmt.Println("Invalid callback URL:", callbackURL)
 			return redirectWithError(c, "Invalid callback URL")
 		}
-		data, err := ctrl.queries.GetOauthConfigData(c.Context(), id)
-		if err != nil {
-			fmt.Println("data:", data)
-			fmt.Println("Error fetching OAuth config data:", err)
-			return redirectWithError(c, "Failed to fetch OAuth config")
+		rediskey := "oauthThing:" + id.String()
+		response, errs := ctrl.redisClient.Get(c.Context(), rediskey).Result()
+
+		if errs == redis.Nil {
+			fmt.Println("cache miss")
+			data, err := ctrl.queries.GetOauthConfigData(c.Context(), id)
+			if err != nil {
+				fmt.Println("data:", data)
+				fmt.Println("Error fetching OAuth config data:", err)
+				return redirectWithError(c, "Failed to fetch OAuth config")
+			}
+			jsondata, _ := json.Marshal(data)
+			err = ctrl.redisClient.Set(c.Context(), rediskey, jsondata, 5*time.Minute).Err()
+		} else if errs != nil {
+			fmt.Println("redis server error")
+			return redirectWithError(c, "internal redis server error")
+		} else {
+			fmt.Println("cache hit")
+			fmt.Println("cached data:", response)
 		}
+
 	} else {
 		fmt.Println("No callback URL provided")
 	}
@@ -171,18 +205,35 @@ func (ctrl *Controller) GoogleLoginCallbackSas(c *fiber.Ctx) error {
 	}
 
 	if callbackURL != "" {
+		type CachedDataStyle struct {
+			Endpoint     string `json:"endpoint"`
+			ClientSecret string `json:"client_secret"`
+		}
+		var cachedData CachedDataStyle
 
 		uId, err := utils.StrToPgUUID(callbackURL)
 		if err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
 		}
+		rediskey := "oauthThing:" + uId.String()
+		redisResponse, errs := ctrl.redisClient.Get(c.Context(), rediskey).Result()
 
-		data, err := ctrl.queries.GetOauthConfigData(c.Context(), uId)
-		if err != nil {
-			return c.Status(404).JSON(fiber.Map{"error": "invalid key"})
+		if errs == redis.Nil {
+			fmt.Println("cache miss")
+		} else if errs != nil {
+			fmt.Println("redis server error")
+		} else {
+			fmt.Println("cache hit")
+			err = json.Unmarshal([]byte(redisResponse), &cachedData)
+			if err != nil {
+				fmt.Println("error unmarshalling cached data:", err)
+				return c.Status(500).JSON(fiber.Map{"error": "internal server error"})
+
+			}
+			fmt.Println(cachedData.Endpoint)
 		}
 
-		u, err := url.Parse(data.Endpoint)
+		u, err := url.Parse(cachedData.Endpoint)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "invalid endpoint"})
 		}
@@ -197,7 +248,7 @@ func (ctrl *Controller) GoogleLoginCallbackSas(c *fiber.Ctx) error {
 			UUID:         uuid.New().String(),
 			ProviderName: "google",
 		}
-		response, err := utils.CreateOauthToken(style, data.ClientSecret)
+		response, err := utils.CreateOauthToken(style, cachedData.ClientSecret)
 		if err != nil {
 			fmt.Println("failed to create token", err)
 			return c.Status(500).JSON(fiber.Map{"error": "failed to create token", "err": err})
@@ -324,18 +375,35 @@ func (ctrl *Controller) GithubLoginSasCallback(c *fiber.Ctx) error {
 	}
 
 	if callbackURL != "" {
+		type CachedDataStyle struct {
+			Endpoint     string `json:"endpoint"`
+			ClientSecret string `json:"client_secret"`
+		}
+		var cachedData CachedDataStyle
 
 		uId, err := utils.StrToPgUUID(callbackURL)
 		if err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
 		}
+		rediskey := "oauthThing:" + uId.String()
+		redisResponse, errs := ctrl.redisClient.Get(c.Context(), rediskey).Result()
 
-		data, err := ctrl.queries.GetOauthConfigData(c.Context(), uId)
-		if err != nil {
-			return c.Status(404).JSON(fiber.Map{"error": "invalid key"})
+		if errs == redis.Nil {
+			fmt.Println("cache miss")
+		} else if errs != nil {
+			fmt.Println("redis server error")
+		} else {
+			fmt.Println("cache hit")
+			err = json.Unmarshal([]byte(redisResponse), &cachedData)
+			if err != nil {
+				fmt.Println("error unmarshalling cached data:", err)
+				return c.Status(500).JSON(fiber.Map{"error": "internal server error"})
+
+			}
+			fmt.Println(cachedData.Endpoint)
 		}
 
-		u, err := url.Parse(data.Endpoint)
+		u, err := url.Parse(cachedData.Endpoint)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "invalid endpoint"})
 		}
@@ -350,7 +418,7 @@ func (ctrl *Controller) GithubLoginSasCallback(c *fiber.Ctx) error {
 			UUID:         uuid.New().String(),
 			ProviderName: "github",
 		}
-		response, err := utils.CreateOauthToken(style, data.ClientSecret)
+		response, err := utils.CreateOauthToken(style, cachedData.ClientSecret)
 		if err != nil {
 			fmt.Println("failed to create token", err)
 			return c.Status(500).JSON(fiber.Map{"error": "failed to create token", "err": err})
