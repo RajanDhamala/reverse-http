@@ -13,8 +13,13 @@ import (
 func AppConfigRouter(app *fiber.App, ctrl *controller.Controller) {
 	AppConfigRouter := app.Group("/app")
 
+	crudLimit := limiter.New(limiter.Config{
+		Max:        100,
+		Expiration: 10 * time.Minute,
+	})
+
 	test := limiter.New(limiter.Config{
-		Max:        5,
+		Max:        15,
 		Expiration: 10 * time.Minute,
 	})
 
@@ -24,13 +29,26 @@ func AppConfigRouter(app *fiber.App, ctrl *controller.Controller) {
 		return c.Status(200).JSON(data)
 	})
 
-	AppConfigRouter.Post("/init", middleware.AuthUser, ctrl.AddAppConfig)
+	AppConfigRouter.Post("/init", crudLimit, middleware.AuthUser, ctrl.AddAppConfig)
 
 	AppConfigRouter.Get("/allConfigs", middleware.AuthUser, ctrl.GetOwnerConfigs)
 
-	AppConfigRouter.Get("/config/:id", ctrl.GetAppConfig)
+	AppConfigRouter.Get("/config/:id", limiter.New(limiter.Config{
+		Max:        50,
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.Params("id")
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			data := make(map[string]string)
+			data["error"] = "Too many requests for this app config, please try again later"
+			return c.Status(429).JSON(data)
+		},
+	}),
+		ctrl.GetAppConfig,
+	)
 
-	AppConfigRouter.Patch("/update", middleware.AuthUser, ctrl.EditOwnerConfig)
+	AppConfigRouter.Patch("/update", crudLimit, middleware.AuthUser, ctrl.EditOwnerConfig)
 
-	AppConfigRouter.Delete("/delete/:id", middleware.AuthUser, ctrl.DeleteAppConfig)
+	AppConfigRouter.Delete("/delete/:id", crudLimit, middleware.AuthUser, ctrl.DeleteAppConfig)
 }
