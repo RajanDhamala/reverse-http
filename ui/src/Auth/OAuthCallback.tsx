@@ -1,178 +1,138 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import axios from "axios";
+import { AlertCircle, CheckCircle2, Chrome, LogOut, Terminal } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import axios from "axios"
 
 interface OAuthUserData {
   provider: string;
-  id: string;
+  id?: string;
   email: string;
   full_name: string;
   avatar_url: string;
 }
 
-const OAuthCallback = () => {
+function parseOAuthData(raw: string | null) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(decodeURIComponent(raw)) as OAuthUserData;
+  } catch {
+    return null;
+  }
+}
+
+export default function OAuthCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [userData, setUserData] = useState<OAuthUserData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const logoutUser = async () => {
-    const req = axios.get("http://localhost:3000/user/logout", {
-      withCredentials: true
-    }
-    )
-  }
+  const errorParam = searchParams.get("error");
+  const userData = parseOAuthData(searchParams.get("data"));
+  const error = errorParam
+    ? decodeURIComponent(errorParam)
+    : userData
+      ? null
+      : "No OAuth data received";
+
   useEffect(() => {
-    const data = searchParams.get("data");
-    const errorParam = searchParams.get("error");
-
-    if (errorParam) {
-      setError(decodeURIComponent(errorParam));
-      return;
+    if (window.opener) {
+      window.opener.postMessage(
+        {
+          type: "oauth_complete",
+          ok: !error,
+        },
+        window.location.origin,
+      );
     }
+  }, [error]);
 
-    if (data) {
-      try {
-        const decoded = decodeURIComponent(data);
-        const parsed: OAuthUserData = JSON.parse(decoded);
-        setUserData(parsed);
-        console.log("OAuth User Data:", parsed);
-      } catch {
-        setError("Failed to parse user data");
-      }
-    } else {
-      setError("No data received");
-    }
-  }, [searchParams]);
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-        <div className="w-full max-w-sm space-y-6 text-center">
-          <div className="w-16 h-16 mx-auto bg-red-500/20 rounded-full flex items-center justify-center">
-            <svg
-              className="w-8 h-8 text-red-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </div>
-          <h1 className="text-xl font-bold text-white">Authentication Error</h1>
-          <p className="text-zinc-400">{error}</p>
-          <button
-            onClick={() => navigate("/login")}
-            className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition"
-          >
-            Back to Login
-          </button>
-          <button
-            onClick={() => logoutUser()}
-            className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition"
-          >
-            logout
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  const logoutUser = async () => {
+    await axios.get("http://localhost:3000/user/logout", {
+      withCredentials: true,
+    });
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 mx-auto bg-green-500/20 rounded-full flex items-center justify-center">
-            <svg
-              className="w-8 h-8 text-green-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
+    <main className="app-page grid-canvas flex min-h-screen items-center justify-center p-4">
+      <div className="browser-shell w-full max-w-2xl overflow-hidden rounded-2xl">
+        <div className="browser-bar flex items-center gap-3 px-4 py-3">
+          <div className="flex gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+            <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
+            <span className="h-3 w-3 rounded-full bg-[#28c840]" />
           </div>
-          <h1 className="text-xl font-bold text-white">Welcome!</h1>
+          <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full border border-gray-200 bg-white px-3">
+            <Chrome className="h-3.5 w-3.5 text-cyan-500" />
+            <span className="truncate font-mono text-xs text-gray-500">
+              reverse-http.local/oauth/callback
+            </span>
+          </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
-          <div className="flex items-center gap-4">
-            {userData.avatar_url ? (
-              <img
-                src={userData.avatar_url}
-                alt="Avatar"
-                className="w-14 h-14 rounded-full border-2 border-zinc-700"
-              />
-            ) : (
-              <div className="w-14 h-14 rounded-full bg-zinc-800 flex items-center justify-center">
-                <span className="text-xl text-white font-medium">
-                  {userData.full_name?.charAt(0) ||
-                    userData.email?.charAt(0) ||
-                    "?"}
-                </span>
+        <section className="bg-white p-6 sm:p-10">
+          {error ? (
+            <div className="text-center">
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600">
+                <AlertCircle className="h-7 w-7" />
               </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-medium truncate">
-                {userData.full_name || "User"}
-              </p>
-              <p className="text-zinc-400 text-sm truncate">{userData.email}</p>
+              <h1 className="text-2xl font-semibold text-gray-950">Authentication Error</h1>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-600">{error}</p>
+              <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+                <button type="button" onClick={() => navigate("/login")} className="dev-button dev-button-primary">
+                  Back to Login
+                </button>
+                <button type="button" onClick={() => void logoutUser()} className="dev-button">
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div>
+              <div className="text-center">
+                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-600">
+                  <CheckCircle2 className="h-7 w-7" />
+                </div>
+                <h1 className="text-2xl font-semibold text-gray-950">OAuth Complete</h1>
+                <p className="mt-2 text-sm text-gray-600">Provider profile data reached the frontend callback.</p>
+              </div>
 
-          <div className="pt-4 border-t border-zinc-800">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-zinc-500">Provider</span>
-              <span className="text-white capitalize">{userData.provider}</span>
+              <div className="chrome-card mt-8 rounded-xl p-5">
+                <div className="flex items-center gap-4">
+                  {userData?.avatar_url ? (
+                    <img src={userData.avatar_url} alt="Avatar" className="h-14 w-14 rounded-full border border-gray-200 object-cover" />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cyan-50 text-xl font-semibold text-cyan-700">
+                      {userData?.full_name?.charAt(0) || userData?.email?.charAt(0) || "U"}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-gray-950">{userData?.full_name || "User"}</p>
+                    <p className="truncate text-sm text-gray-500">{userData?.email}</p>
+                    <p className="mt-1 font-mono text-xs text-cyan-700">{userData?.provider}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="code-window mt-5">
+                <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-3 font-mono text-xs text-gray-400">
+                  <Terminal className="h-3.5 w-3.5 text-cyan-400" />
+                  response.json
+                </div>
+                <pre className="max-h-64 overflow-auto p-4 font-mono text-xs leading-6 text-gray-300">
+                  {JSON.stringify(userData, null, 2)}
+                </pre>
+              </div>
+
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <button type="button" onClick={() => navigate("/")} className="dev-button dev-button-primary flex-1">
+                  Continue
+                </button>
+                <button type="button" onClick={() => void logoutUser()} className="dev-button flex-1">
+                  Logout
+                </button>
+              </div>
             </div>
-            <div className="flex items-center justify-between text-sm mt-2">
-              <span className="text-zinc-500">ID</span>
-              <span className="text-zinc-400 font-mono text-xs">
-                {userData.id}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
-          <p className="text-zinc-500 text-xs mb-2">Response data:</p>
-          <pre className="text-xs text-zinc-400 overflow-x-auto">
-            {JSON.stringify(userData, null, 2)}
-          </pre>
-        </div>
-
-        <button
-          onClick={() => navigate("/")}
-          className="w-full py-3 bg-white text-black hover:bg-zinc-200 font-medium rounded-lg transition"
-        >
-          Continue
-        </button>
-        <button
-          onClick={() => logoutUser()}
-          className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition"
-        >
-          logout
-        </button>
+          )}
+        </section>
       </div>
-    </div>
+    </main>
   );
-};
-
-export default OAuthCallback;
+}

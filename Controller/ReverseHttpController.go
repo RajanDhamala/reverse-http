@@ -186,7 +186,9 @@ func (ctrl *Controller) UpdateConfig(c *fiber.Ctx) error {
 	}
 
 	redisKey := "redirectList:" + userId.String()
-	ctrl.redisClient.Del(c.Context(), redisKey)
+
+	oauthkey := "oauthThing:" + cfgId.String()
+	ctrl.redisClient.Del(c.Context(), redisKey, oauthkey)
 
 	return c.Status(200).JSON(fiber.Map{"message": "successfully updated the config"})
 }

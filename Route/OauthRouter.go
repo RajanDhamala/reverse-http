@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 
 	"reverse-http/Controller"
+	"reverse-http/Middleware"
 )
 
 func OauthRouter(app *fiber.App, ctrl *controller.Controller) {
@@ -24,9 +25,13 @@ func OauthRouter(app *fiber.App, ctrl *controller.Controller) {
 		})
 	})
 
+	OauthRouter.Get("/error", ctrl.OAuthErrorPage)
+
 	OauthRouter.Get("/github", normalLimit, ctrl.GithubLoginSas)
 	OauthRouter.Get("/github/callback", normalLimit, ctrl.GithubLoginSasCallback)
 
 	OauthRouter.Get("/google", normalLimit, ctrl.GoogleLoginSas)
 	OauthRouter.Get("/google/callback", normalLimit, ctrl.GoogleLoginCallbackSas)
+
+	OauthRouter.Get("/listen/:flowID", middleware.AuthUser, ctrl.ListenForOAuth)
 }

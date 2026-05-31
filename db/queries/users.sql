@@ -49,10 +49,10 @@ SELECT id,app_name,endpoint,configs,updated_at FROM app_configs WHERE id = $1;
 
 -- name: UpdateAppConfig :one
 UPDATE app_configs SET
-    app_name = COALESCE($3, app_name),
-    endpoint  = COALESCE($4, endpoint),
-    configs   = COALESCE($5, configs)
-WHERE id = $1 AND user_id = $2
+    app_name = COALESCE(sqlc.narg('app_name'), app_name),
+    endpoint  = COALESCE(sqlc.narg('endpoint'), endpoint),
+    configs   = COALESCE(sqlc.narg('configs'), configs)
+WHERE id = sqlc.arg('id') AND user_id = sqlc.arg('user_id')
 RETURNING *;
 
 -- name: DeleteAppConfig :exec
@@ -83,5 +83,4 @@ RETURNING *;
 
 -- name: DeleteOauthConfig :exec
 DELETE FROM oauth_configs WHERE id=$1 AND user_id=$2;
-
 

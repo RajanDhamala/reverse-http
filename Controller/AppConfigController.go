@@ -186,10 +186,11 @@ func (ctrl *Controller) GetOwnerConfigs(c *fiber.Ctx) error {
 }
 
 type EditConfigReq struct {
-	AppName  string         `json:"app_name"`
-	Endpoint string         `json:"endpoint"`
-	Configs  datatypes.JSON `json:"configs"`
-	Id       string         `json:"id"`
+	AppName   string         `json:"app_name"`
+	AppConfig string         `json:"appConfig"`
+	Endpoint  string         `json:"endpoint"`
+	Configs   datatypes.JSON `json:"configs"`
+	Id        string         `json:"id"`
 }
 
 func (ctrl *Controller) EditOwnerConfig(c *fiber.Ctx) error {
@@ -209,8 +210,12 @@ func (ctrl *Controller) EditOwnerConfig(c *fiber.Ctx) error {
 	}
 
 	appName := pgtype.Text{}
-	if req.AppName != "" {
-		appName = pgtype.Text{String: req.AppName, Valid: true}
+	appNameValue := req.AppName
+	if appNameValue == "" {
+		appNameValue = req.AppConfig
+	}
+	if appNameValue != "" {
+		appName = pgtype.Text{String: appNameValue, Valid: true}
 	}
 
 	endpoint := pgtype.Text{}
@@ -226,8 +231,8 @@ func (ctrl *Controller) EditOwnerConfig(c *fiber.Ctx) error {
 	_, err = ctrl.queries.UpdateAppConfig(c.Context(), db.UpdateAppConfigParams{
 		ID:       cfgId,
 		UserID:   userId,
-		AppName:  appName.String,
-		Endpoint: endpoint.String,
+		AppName:  appName,
+		Endpoint: endpoint,
 		Configs:  configs,
 	})
 	if err != nil {

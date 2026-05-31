@@ -1,13 +1,35 @@
-const Error404Page = () => {
+import { Link } from "react-router-dom";
+import { Compass, Home } from "lucide-react";
+
+export default function Error404Page() {
   return (
-    <div className="flex flex-col items-center justify-center h-screen">
-      <h1 className="text-6xl font-bold text-gray-800">404</h1>
-      <p className="text-xl text-gray-600 mt-4">Page Not Found</p>
-      <a href="/" className="mt-6 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition duration-300">
-        Go Back Home
-      </a>
-    </div>
+    <main className="app-page grid-canvas flex min-h-screen items-center justify-center p-4">
+      <div className="browser-shell w-full max-w-xl overflow-hidden rounded-2xl">
+        <div className="browser-bar flex items-center gap-3 px-4 py-3">
+          <div className="flex gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+            <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
+            <span className="h-3 w-3 rounded-full bg-[#28c840]" />
+          </div>
+          <span className="truncate font-mono text-xs text-gray-500">
+            reverse-http.local/404
+          </span>
+        </div>
+        <section className="bg-white p-8 text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-700">
+            <Compass className="h-7 w-7" />
+          </div>
+          <p className="font-mono text-xs text-cyan-700">404_NOT_FOUND</p>
+          <h1 className="mt-3 text-3xl font-semibold text-gray-950">Page not found</h1>
+          <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-gray-600">
+            This route is not registered in the Reverse HTTP workspace.
+          </p>
+          <Link to="/" className="dev-button dev-button-primary mt-7">
+            <Home className="h-4 w-4" />
+            Go home
+          </Link>
+        </section>
+      </div>
+    </main>
   );
 }
-
-export default Error404Page;

@@ -12,6 +12,7 @@ type Controller struct {
 	pool        *pgxpool.Pool
 	redisClient *redis.Client
 	sfGroup     singleflight.Group
+	oauthStream *OAuthStreamHub
 }
 
 func NewController(queries *sqlc.Queries, pool *pgxpool.Pool, redisClient *redis.Client) *Controller {
@@ -19,5 +20,6 @@ func NewController(queries *sqlc.Queries, pool *pgxpool.Pool, redisClient *redis
 		queries:     queries,
 		pool:        pool,
 		redisClient: redisClient,
+		oauthStream: NewOAuthStreamHub(),
 	}
 }

@@ -1,170 +1,154 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Mail, Lock, Github, Eye, EyeOff } from "lucide-react";
+import { Chrome, Eye, EyeOff, Github, Lock, Mail, Terminal } from "lucide-react";
+import toast from "react-hot-toast";
 
-const LoginPage = () => {
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1000);
+    window.setTimeout(() => setIsLoading(false), 1000);
   };
 
-  const googleOauth = async () => {
+  const googleOauth = () => {
     window.location.href = "http://localhost:3000/oauth/google";
   };
 
-  const githubOauth = async () => {
+  const githubOauth = () => {
     window.location.href = "http://localhost:3000/oauth/github";
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black p-4 selection:bg-zinc-700 selection:text-white">
-      <div className="w-full max-w-[380px] space-y-8">
-        {/* Header */}
-        <div className="flex flex-col items-center space-y-2">
-          <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center mb-2">
-            <div className="h-5 w-5 bg-black rounded-sm rotate-45" />
+    <main className="app-page grid-canvas flex min-h-screen items-center justify-center p-4">
+      <div className="browser-shell w-full max-w-[920px] overflow-hidden rounded-2xl">
+        <div className="browser-bar flex items-center gap-3 px-4 py-3">
+          <div className="flex gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+            <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
+            <span className="h-3 w-3 rounded-full bg-[#28c840]" />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">
-            Welcome back
-          </h1>
-          <p className="text-zinc-500 text-sm">
-            Enter your credentials to access your account
-          </p>
-        </div>
-
-        {/* Social Auth */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            className="bg-zinc-950 border-zinc-800 hover:bg-zinc-900 text-zinc-300 hover:text-white transition-all duration-200"
-            onClick={(e) => googleOauth()}
-          >
-            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
-              <path
-                fill="currentColor"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="currentColor"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                opacity="0.7"
-              />
-            </svg>
-            Google
-          </Button>
-          <Button
-            variant="outline"
-            className="bg-zinc-950 border-zinc-800 hover:bg-zinc-900 text-zinc-300 hover:text-white transition-all duration-200"
-            onClick={(e) => githubOauth()}
-          >
-            <Github className="w-4 h-4 mr-2" />
-            GitHub
-          </Button>
-        </div>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-zinc-800" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-black px-4 text-zinc-600 font-medium">
-              Or continue with email
+          <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full border border-gray-200 bg-white px-3">
+            <Chrome className="h-3.5 w-3.5 text-cyan-500" />
+            <span className="truncate font-mono text-xs text-gray-500">
+              reverse-http.local/login
             </span>
           </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider ml-1">
-              Email Address
-            </label>
-            <div className="relative group">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-focus-within:text-zinc-300 transition-colors" />
-              <Input
-                type="email"
-                placeholder="name@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 h-12 bg-zinc-950 border-zinc-800 text-white placeholder:text-zinc-600 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all"
-                required
-              />
+        <div className="grid md:grid-cols-[0.9fr_1.1fr]">
+          <section className="grid-canvas hidden min-h-[540px] border-r border-gray-200 p-8 md:block">
+            <span className="status-pill">Auth console</span>
+            <h1 className="mt-6 max-w-sm text-4xl font-semibold leading-tight text-gray-950">
+              Sign in to manage configs and OAuth routes.
+            </h1>
+            <div className="chrome-card-strong mt-10 rounded-xl p-5">
+              <p className="dev-label">Session Preview</p>
+              <div className="space-y-3 font-mono text-xs text-gray-600">
+                <p><span className="text-cyan-600">GET</span> /user/me</p>
+                <p><span className="text-cyan-600">COOKIE</span> accessToken</p>
+                <p><span className="text-cyan-600">MODE</span> oauth-first</p>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center ml-1">
-              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                Password
-              </label>
-              <Link
-                to="/forgot-password"
-                size="sm"
-                className="text-xs text-zinc-500 hover:text-white transition-colors"
-              >
-                Forgot password?
-              </Link>
+          <section className="bg-white p-6 sm:p-10">
+            <div className="mb-8">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700">
+                <Terminal className="h-5 w-5" />
+              </div>
+              <h2 className="text-2xl font-semibold text-gray-950">Welcome back</h2>
+              <p className="mt-2 text-sm leading-6 text-gray-600">
+                Use OAuth for the fastest path, or keep email login available for dev testing.
+              </p>
             </div>
-            <div className="relative group">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-focus-within:text-zinc-300 transition-colors" />
-              <Input
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 pr-10 h-12 bg-zinc-950 border-zinc-800 text-white placeholder:text-zinc-600 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-300 transition-colors"
-              >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={googleOauth} className="dev-button">
+                <Chrome className="h-4 w-4 text-cyan-600" />
+                Google
+              </button>
+              <button type="button" onClick={githubOauth} className="dev-button">
+                <Github className="h-4 w-4" />
+                GitHub
               </button>
             </div>
-          </div>
 
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full h-12 bg-white text-black hover:bg-zinc-200 transition-all font-semibold rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-          >
-            {isLoading ? (
-              <div className="flex items-center space-x-2">
-                <span className="h-4 w-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                <span>Authenticating...</span>
+            <div className="my-7 flex items-center gap-3">
+              <span className="h-px flex-1 bg-gray-200" />
+              <span className="font-mono text-xs text-gray-400">email fallback</span>
+              <span className="h-px flex-1 bg-gray-200" />
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div>
+                <label className="dev-label">
+                  <Mail className="h-3.5 w-3.5" />
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="dev-input"
+                  placeholder="name@company.com"
+                  required
+                />
               </div>
-            ) : (
-              "Sign In"
-            )}
-          </Button>
-        </form>
 
-        <p className="text-center text-zinc-500 text-sm">
-          Don't have an account?{" "}
-          <Link
-            to="/register"
-            className="text-zinc-300 hover:text-white font-medium underline-offset-4 hover:underline"
-          >
-            Create an account
-          </Link>
-        </p>
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="dev-label mb-0">
+                    <Lock className="h-3.5 w-3.5" />
+                    Password
+                  </label>
+                  <Link to="/forgot-password" className="text-xs font-medium text-cyan-700 hover:text-cyan-900">
+                    Forgot password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="dev-input pr-10"
+                    placeholder="password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((current) => !current)}
+                    className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-cyan-700"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" disabled={isLoading}
+                onClick={() => {
+                  toast.error("use oauth")
+                }}
+                className="dev-button dev-button-primary w-full">
+                {isLoading ? "Authenticating..." : "Sign In"}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-gray-500">
+              Do not have an account?{" "}
+              <Link to="/register" className="font-semibold text-cyan-700 hover:text-cyan-900">
+                Create one
+              </Link>
+            </p>
+          </section>
+        </div>
       </div>
-    </div>
+    </main>
   );
-};
-
-export default LoginPage;
+}

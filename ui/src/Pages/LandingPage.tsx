@@ -1,318 +1,399 @@
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
+  Activity,
   ArrowRight,
   Braces,
-  CloudCog,
-  Code2,
+  CheckCircle2,
+  Chrome,
+  DatabaseZap,
+  FileCode2,
   Github,
+  Grid2X2,
   LockKeyhole,
-  Network,
+  PanelsTopLeft,
+  Radio,
   Route,
+  Server,
   ShieldCheck,
-  Smartphone,
   Terminal,
+  Wifi,
 } from "lucide-react";
 
-const panelClass =
-  "border border-neutral-800 bg-neutral-900/70 shadow-2xl shadow-black/20";
+const releaseNotes = [
+  "Stream OAuth route traffic through /oauth/live?client_id=:route.",
+  "Watch provider redirects, callbacks, and signed handoffs as they happen.",
+  "Keep the latest 200 route events in a browser-native terminal view.",
+];
 
-const primaryLink =
-  "inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-neutral-100 px-5 text-sm font-semibold text-neutral-950 transition hover:bg-white";
+const liveTrafficRows = [
+  { time: "14:22:01.118", provider: "github", method: "GET", endpoint: "/oauth/github?client_id=rh_live", tone: "text-cyan-300" },
+  { time: "14:22:01.241", provider: "github", method: "302", endpoint: "redirect_provider github.com/login/oauth", tone: "text-amber-300" },
+  { time: "14:22:04.903", provider: "github", method: "CALLBACK", endpoint: "/oauth/callback/github", tone: "text-sky-300" },
+  { time: "14:22:04.947", provider: "route", method: "OK", endpoint: "signed handoff to localhost:4000/callback", tone: "text-emerald-300" },
+  { time: "14:22:06.332", provider: "google", method: "GET", endpoint: "/oauth/google?client_id=rh_live", tone: "text-cyan-300" },
+  { time: "14:22:06.419", provider: "stream", method: "EVENT", endpoint: "pushed to live dashboard listener", tone: "text-fuchsia-300" },
+];
 
-const secondaryLink =
-  "inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 px-5 text-sm font-medium text-neutral-300 transition hover:border-neutral-600 hover:text-white";
+const dashboardStats = [
+  { label: "events", value: "128", icon: <Activity className="h-4 w-4" aria-hidden="true" /> },
+  { label: "latency", value: "42ms", icon: <DatabaseZap className="h-4 w-4" aria-hidden="true" /> },
+  { label: "status", value: "LIVE", icon: <Wifi className="h-4 w-4" aria-hidden="true" /> },
+];
 
 const features = [
   {
     icon: <Braces className="h-4 w-4" aria-hidden="true" />,
     title: "Startup config endpoint",
-    text: "Serve app JSON at launch so mobile and web clients can discover the latest backend URL without shipping a new build.",
+    text: "Mobile and web clients fetch live JSON at launch instead of carrying stale IPs in builds.",
   },
   {
     icon: <Route className="h-4 w-4" aria-hidden="true" />,
-    title: "Reverse HTTP routing",
-    text: "Point public callbacks at your local or dockerized services while you keep full control of backend behavior.",
+    title: "Private callback routing",
+    text: "OAuth providers hit the public service, then your local backend receives the signed handoff.",
   },
   {
     icon: <LockKeyhole className="h-4 w-4" aria-hidden="true" />,
-    title: "OAuth handoff control",
-    text: "Use Google and GitHub callback flows from localhost, then let your backend decide how tokens are returned.",
+    title: "Route-owned secrets",
+    text: "Each callback route signs its payload with the secret your backend already knows.",
   },
 ];
 
-const flowSteps = [
-  "RN app boots",
-  "Fetch config JSON",
-  "Resolve live backend",
-  "Send request",
-];
-
-function HeroVisual() {
+function LiveDashboardPreview() {
   return (
-    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:48px_48px]" />
-      <div className="absolute left-1/2 top-28 w-[min(980px,92vw)] -translate-x-1/2">
-        <div className="grid gap-3 opacity-45 md:grid-cols-[1fr_1.2fr_1fr]">
-          <div className="hidden rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 md:block">
-            <div className="mb-4 flex items-center gap-2 text-xs text-neutral-500">
-              <Smartphone className="h-3.5 w-3.5" aria-hidden="true" />
-              app startup
-            </div>
-            <div className="space-y-2 font-mono text-[11px] text-neutral-500">
-              <p>GET /app/config/mobile</p>
-              <p className="text-emerald-300">200 baseUrl updated</p>
-              <p>api: 192.168.1.42</p>
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="relative min-w-0 overflow-hidden rounded-xl border border-[#232832] bg-[#10131a] shadow-2xl shadow-slate-950/25"
+    >
+      <div className="flex items-center justify-between border-b border-white/10 bg-[#151922] px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+            <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
+            <span className="h-3 w-3 rounded-full bg-[#28c840]" />
+          </div>
+          <div className="flex min-w-0 items-center gap-2 font-mono text-xs text-slate-400">
+            <Radio className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+            <span className="truncate">GET /oauth/live?client_id=rh_live</span>
+          </div>
+        </div>
+        <div className="ml-3 flex shrink-0 items-center gap-2 font-mono text-xs text-emerald-300">
+          <span className="h-2 w-2 rounded-full bg-emerald-300">
+            <motion.span
+              className="block h-2 w-2 rounded-full bg-emerald-300"
+              animate={{ opacity: [0.7, 0], scale: [1, 2.5] }}
+              transition={{ duration: 1.35, repeat: Infinity, ease: "easeOut" }}
+            />
+          </span>
+          LIVE
+        </div>
+      </div>
+
+      <div className="grid gap-0 lg:grid-cols-[210px_minmax(0,1fr)]">
+        <aside className="border-b border-white/10 bg-white/[0.03] p-4 lg:border-b-0 lg:border-r">
+          <p className="font-mono text-[11px] font-semibold uppercase text-slate-500">Route</p>
+          <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="break-all font-mono text-xs text-slate-300">rh_live_8f42</p>
+            <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+              <Github className="h-3.5 w-3.5 text-slate-300" aria-hidden="true" />
+              <Chrome className="h-3.5 w-3.5 text-cyan-300" aria-hidden="true" />
+              <span>providers armed</span>
             </div>
           </div>
-          <div className="rounded-xl border border-neutral-700 bg-neutral-900/90 p-4">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-neutral-400">
-                <CloudCog className="h-3.5 w-3.5" aria-hidden="true" />
-                control plane
+
+          <div className="mt-4 grid gap-2">
+            {dashboardStats.map((stat) => (
+              <div key={stat.label} className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="font-mono text-[11px] uppercase">{stat.label}</span>
+                  <span className="text-cyan-300">{stat.icon}</span>
+                </div>
+                <p className="mt-2 font-mono text-lg font-semibold text-white">{stat.value}</p>
               </div>
-              <span className="rounded-full border border-emerald-900/70 bg-emerald-950/40 px-2 py-0.5 text-[10px] text-emerald-200">
-                live
-              </span>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
-                <p className="text-[10px] text-neutral-600">Config keys</p>
-                <p className="mt-1 text-xl font-semibold text-neutral-100">14</p>
-              </div>
-              <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
-                <p className="text-[10px] text-neutral-600">OAuth routes</p>
-                <p className="mt-1 text-xl font-semibold text-neutral-100">03</p>
-              </div>
-            </div>
+            ))}
           </div>
-          <div className="hidden rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 lg:block">
-            <div className="mb-4 flex items-center gap-2 text-xs text-neutral-500">
-              <Github className="h-3.5 w-3.5" aria-hidden="true" />
-              oauth callback
-            </div>
-            <div className="space-y-2 font-mono text-[11px] text-neutral-500">
-              <p>github.com/login/oauth</p>
-              <p className="text-sky-300">redirect /oauth/callback</p>
-              <p className="text-emerald-300">token returned</p>
+        </aside>
+
+        <div className="min-w-0">
+          <div className="grid gap-3 border-b border-white/10 p-4 sm:grid-cols-3">
+            {[
+              { label: "public hit", icon: <Server className="h-4 w-4" aria-hidden="true" /> },
+              { label: "provider auth", icon: <Github className="h-4 w-4" aria-hidden="true" /> },
+              { label: "local callback", icon: <Terminal className="h-4 w-4" aria-hidden="true" /> },
+            ].map((node, index) => (
+              <div key={node.label} className="relative rounded-lg border border-white/10 bg-white/[0.04] p-3">
+                <div className="flex items-center gap-2 font-mono text-xs text-slate-300">
+                  <span className="text-cyan-300">{node.icon}</span>
+                  {node.label}
+                </div>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                  <motion.div
+                    className="h-full rounded-full bg-cyan-300"
+                    animate={{ x: ["-100%", "0%", "100%"] }}
+                    transition={{ duration: 2.4, repeat: Infinity, delay: index * 0.35, ease: "easeInOut" }}
+                  />
+                </div>
+                {index < 2 ? (
+                  <ArrowRight className="absolute -right-5 top-1/2 hidden h-4 w-4 -translate-y-1/2 text-slate-500 sm:block" aria-hidden="true" />
+                ) : null}
+              </div>
+            ))}
+          </div>
+
+          <div className="h-[340px] overflow-hidden px-3 py-3 font-mono text-[12px] leading-6 sm:px-4">
+            {liveTrafficRows.map((row, index) => (
+              <motion.div
+                key={`${row.time}-${row.endpoint}`}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: [0.45, 1, 1, 0.7], y: 0 }}
+                transition={{ duration: 3.6, repeat: Infinity, delay: index * 0.42, repeatDelay: 1.8 }}
+                className="grid min-w-0 grid-cols-[74px_68px_76px_minmax(0,1fr)] gap-3 border-b border-white/5 py-2 last:border-b-0"
+              >
+                <span className="truncate text-slate-500">{row.time}</span>
+                <span className="truncate text-slate-500">[{row.provider}]</span>
+                <span className={`font-semibold ${row.tone}`}>{row.method}</span>
+                <span className="min-w-0 truncate text-slate-100">"{row.endpoint}"</span>
+              </motion.div>
+            ))}
+
+            <div className="flex items-center gap-3 py-4 text-slate-500">
+              <motion.span
+                className="h-4 w-4 rounded-full border-2 border-slate-700 border-t-cyan-300"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              />
+              <span>Waiting for the next OAuth event...</span>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <motion.div
+        className="pointer-events-none absolute inset-x-0 top-14 h-px bg-cyan-300/40"
+        animate={{ y: [0, 430], opacity: [0, 0.8, 0] }}
+        transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+      />
+    </motion.div>
   );
 }
 
-function Hero() {
+function BrowserWindow() {
   return (
-    <section className="relative min-h-[calc(100vh-4rem)] overflow-hidden">
-      <HeroVisual />
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-7xl flex-col justify-center px-4 py-16 md:px-8">
-        <div className="max-w-4xl">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/90 px-3 py-1 text-xs text-neutral-500">
-            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            Config delivery and localhost OAuth for real apps
-          </div>
-
-          <h1 className="max-w-4xl text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl">
-            Reverse HTTP for apps that move faster than their backend URLs.
-          </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-neutral-400 md:text-lg">
-            Serve boot-time config JSON, update changing local IPs in one place,
-            and route OAuth callbacks from Google or GitHub back to your own backend.
-          </p>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link to="/app" className={primaryLink}>
-              Manage app configs
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            <Link to="/oauth" className={secondaryLink}>
-              Set up OAuth routes
-              <Route className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </div>
+    <div className="browser-shell overflow-hidden rounded-2xl">
+      <div className="browser-bar flex items-center gap-3 px-4 py-3">
+        <div className="flex gap-1.5">
+          <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+          <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
+          <span className="h-3 w-3 rounded-full bg-[#28c840]" />
         </div>
-
-        <div className="mt-12 grid gap-3 md:grid-cols-4">
-          {flowSteps.map((step, index) => (
-            <div
-              key={step}
-              className="rounded-xl border border-neutral-800 bg-neutral-900/70 p-4"
-            >
-              <p className="text-xs text-neutral-600">0{index + 1}</p>
-              <p className="mt-2 text-sm font-medium text-neutral-100">{step}</p>
-            </div>
-          ))}
+        <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full border border-gray-200 bg-white px-3">
+          <Chrome className="h-3.5 w-3.5 text-cyan-500" aria-hidden="true" />
+          <span className="truncate font-mono text-xs text-gray-500">
+            reverse-http.dev/oauth/live
+          </span>
         </div>
+        <span className="rounded-md border border-cyan-200 bg-cyan-50 p-1.5 text-cyan-600">
+          <PanelsTopLeft className="h-4 w-4" aria-hidden="true" />
+        </span>
       </div>
-    </section>
-  );
-}
 
-function Platform() {
-  return (
-    <section id="platform" className="border-y border-neutral-900 bg-neutral-950 py-16 md:py-20">
-      <div className="mx-auto w-full max-w-7xl px-4 md:px-8">
-        <div className="mb-8 max-w-2xl">
-          <h2 className="text-2xl font-semibold text-white md:text-3xl">
-            One small control plane, two practical jobs.
-          </h2>
-          <p className="mt-3 text-sm leading-6 text-neutral-500">
-            Keep app startup configuration and OAuth reverse routing in the same
-            console instead of scattering local URLs, tokens, and callback paths.
-          </p>
+      <div className="grid-canvas relative overflow-hidden p-5 sm:p-8 lg:p-10">
+        <div className="grid min-h-[650px] gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
+          <div>
+            <div className="status-pill mb-8 w-max">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Live route monitor
+            </div>
+            <h1 className="max-w-3xl text-5xl font-semibold leading-[0.92] tracking-normal text-gray-950 sm:text-6xl lg:text-7xl">
+              Reverse HTTP
+            </h1>
+            <p className="mt-5 max-w-lg text-base leading-7 text-gray-600">
+              Ship startup config and OAuth callbacks through a public route, then
+              watch every provider hit, redirect, callback, and local handoff in real time.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link to="/app" className="dev-button dev-button-primary">
+                <Chrome className="h-4 w-4" aria-hidden="true" />
+                Open Configs
+              </Link>
+              <Link to="/oauth" className="dev-button">
+                <Radio className="h-4 w-4" aria-hidden="true" />
+                Monitor OAuth
+              </Link>
+              <Link to="/docs" className="dev-button">
+                <Terminal className="h-4 w-4" aria-hidden="true" />
+                Read Docs
+              </Link>
+            </div>
+            <div className="mt-6 grid max-w-xl gap-3 sm:grid-cols-3">
+              {[
+                ["SSE logs", "live browser stream"],
+                ["200 rows", "rolling terminal buffer"],
+                ["OAuth", "public to localhost"],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-lg border border-gray-200 bg-white/75 p-3">
+                  <p className="font-mono text-[11px] uppercase text-gray-400">{label}</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <LiveDashboardPreview />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          {features.map((feature) => (
-            <div key={feature.title} className={panelClass + " rounded-xl p-5"}>
-              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-300">
-                {feature.icon}
-              </div>
-              <h3 className="text-base font-semibold text-neutral-100">
-                {feature.title}
-              </h3>
-              <p className="mt-3 text-sm leading-6 text-neutral-500">
-                {feature.text}
+        <div className="mt-8 grid border border-gray-200 bg-white/86 backdrop-blur md:grid-cols-[280px_1fr]">
+          <div className="border-r border-gray-200 p-6">
+            <p className="font-mono text-xs font-semibold uppercase text-gray-400">
+              Live traffic
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-gray-950">
+              Your public OAuth route now has an observability surface.
+            </h2>
+          </div>
+          <div className="space-y-3 p-6">
+            {releaseNotes.map((note) => (
+              <p key={note} className="font-mono text-xs leading-6 text-gray-600">
+                <span className="mr-2 text-cyan-500">+</span>
+                {note}
               </p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
-    </section>
-  );
-}
-
-function Workflow() {
-  const jsonKeyClass = "text-sky-300";
-  const jsonStringClass = "text-emerald-300";
-  const jsonBooleanClass = "text-amber-300";
-  const jsonPunctuationClass = "text-neutral-500";
-
-  return (
-    <section id="workflow" className="bg-neutral-950 py-16 md:py-20">
-      <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 md:px-8 lg:grid-cols-[0.9fr_1.1fr]">
-        <div>
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 text-xs text-neutral-500">
-            <Terminal className="h-3.5 w-3.5" aria-hidden="true" />
-            Runtime flow
-          </div>
-          <h2 className="text-2xl font-semibold text-white md:text-3xl">
-            Change the backend once, every app reads the new value.
-          </h2>
-          <p className="mt-3 text-sm leading-6 text-neutral-500">
-            When a dockerized service moves to a new local IP, update the config
-            in the platform. Your RN app or website fetches fresh JSON at startup
-            and uses that endpoint for future requests.
-          </p>
-        </div>
-
-        <div className={panelClass + " min-w-0 rounded-xl p-5"}>
-          <div className="mb-4 flex items-center justify-between border-b border-neutral-800 pb-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-neutral-100">
-              <Code2 className="h-4 w-4" aria-hidden="true" />
-              boot-config.json
-            </div>
-            <span className="rounded-md border border-neutral-800 bg-neutral-950 px-2 py-1 text-[11px] text-neutral-500">
-              startup
-            </span>
-          </div>
-          <pre className="max-w-full overflow-x-auto overflow-y-hidden rounded-lg border border-neutral-800 bg-black p-4 font-mono text-xs leading-6 shadow-inner shadow-emerald-950/20">
-            <code className="block w-max min-w-full">
-              <span className={jsonPunctuationClass}>{`{\n`}</span>
-              <span className={jsonKeyClass}>{`  "apiBaseUrl"`}</span>
-              <span className={jsonPunctuationClass}>{`: `}</span>
-              <span className={jsonStringClass}>{`"http://192.168.1.42:4000"`}</span>
-              <span className={jsonPunctuationClass}>{`,\n`}</span>
-              <span className={jsonKeyClass}>{`  "oauthRedirect"`}</span>
-              <span className={jsonPunctuationClass}>{`: `}</span>
-              <span className={jsonStringClass}>{`"https://reverse.local/oauth/callback"`}</span>
-              <span className={jsonPunctuationClass}>{`,\n`}</span>
-              <span className={jsonKeyClass}>{`  "features"`}</span>
-              <span className={jsonPunctuationClass}>{`: {\n`}</span>
-              <span className={jsonKeyClass}>{`    "githubLogin"`}</span>
-              <span className={jsonPunctuationClass}>{`: `}</span>
-              <span className={jsonBooleanClass}>true</span>
-              <span className={jsonPunctuationClass}>{`,\n`}</span>
-              <span className={jsonKeyClass}>{`    "googleLogin"`}</span>
-              <span className={jsonPunctuationClass}>{`: `}</span>
-              <span className={jsonBooleanClass}>true</span>
-              <span className={jsonPunctuationClass}>{`\n  }\n}`}</span>
-            </code>
-          </pre>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function UseCases() {
-  return (
-    <section id="use-cases" className="bg-neutral-950 pb-16 md:pb-24">
-      <div className="mx-auto grid w-full max-w-7xl gap-4 px-4 md:grid-cols-2 md:px-8">
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-300">
-            <Smartphone className="h-4 w-4" aria-hidden="true" />
-          </div>
-          <h3 className="text-lg font-semibold text-neutral-100">
-            Mobile apps with changing local backends
-          </h3>
-          <p className="mt-3 text-sm leading-6 text-neutral-500">
-            Avoid rebuilding the app every time your dockerized backend moves.
-            Keep the current base URL in a server-side config record.
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-300">
-            <Network className="h-4 w-4" aria-hidden="true" />
-          </div>
-          <h3 className="text-lg font-semibold text-neutral-100">
-            OAuth callbacks while developing locally
-          </h3>
-          <p className="mt-3 text-sm leading-6 text-neutral-500">
-            Let providers redirect to this service, forward the useful request to
-            your backend, and keep token handling under your backend control.
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="border-t border-neutral-900 bg-neutral-950 py-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 text-sm text-neutral-600 md:flex-row md:items-center md:justify-between md:px-8">
-        <div className="flex items-center gap-2 text-neutral-400">
-          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-          Reverse HTTP
-        </div>
-        <div className="flex flex-wrap gap-4">
-          <Link to="/app" className="transition hover:text-neutral-300">
-            Config console
-          </Link>
-          <Link to="/oauth" className="transition hover:text-neutral-300">
-            OAuth routing
-          </Link>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
-const LandingPage = () => {
-  return (
-    <div className="min-h-screen overflow-x-hidden bg-neutral-950 text-neutral-100 selection:bg-neutral-200 selection:text-neutral-950">
-      <main>
-        <Hero />
-        <Platform />
-        <Workflow />
-        <UseCases />
-      </main>
-      <Footer />
     </div>
   );
-};
+}
 
-export default LandingPage;
+function WorkspacePreview() {
+  return (
+    <section className="px-4 py-16 md:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 max-w-2xl">
+          <span className="status-pill">Workspace</span>
+          <h2 className="mt-4 text-3xl font-semibold text-gray-950">
+            Built like a browser tool, not a generic SaaS dashboard.
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-gray-600">
+            Dense where it should be dense: routes, config IDs, payload keys,
+            callback URLs, and copy actions are all first-class interface objects.
+          </p>
+        </div>
+
+        <div className="browser-shell grid overflow-hidden rounded-2xl lg:grid-cols-[240px_1fr_320px]">
+          <aside className="border-b border-gray-200 bg-gray-50 p-4 lg:border-b-0 lg:border-r">
+            <p className="dev-label">Explorer</p>
+            {["app_configs", "oauth_routes", "client_secrets", "docs"].map((item) => (
+              <div key={item} className="mb-1 flex items-center gap-2 rounded-md px-2 py-2 text-sm text-gray-600">
+                <Grid2X2 className="h-3.5 w-3.5 text-cyan-500" />
+                {item}
+              </div>
+            ))}
+            <div className="mt-8 rounded-lg border border-gray-200 bg-white p-3">
+              <p className="font-mono text-[11px] text-gray-400">shortcuts</p>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {["C", "R", "JSON", "COPY"].map((key) => (
+                  <kbd key={key} className="mono-chip">{key}</kbd>
+                ))}
+              </div>
+            </div>
+          </aside>
+
+          <div className="grid-canvas min-h-[420px] p-4 sm:p-6">
+            <div className="chrome-card-strong mx-auto mt-6 max-w-xl rounded-xl p-4 sm:mt-10 sm:p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="font-mono text-xs text-cyan-600">GET /app/config/mobile</p>
+                  <h3 className="mt-1 text-lg font-semibold text-gray-950">boot-config.json</h3>
+                </div>
+                <CheckCircle2 className="h-5 w-5 text-cyan-500" />
+              </div>
+              <pre className="whitespace-pre-wrap break-words rounded-lg border border-gray-200 bg-gray-50 p-4 font-mono text-xs leading-6 text-gray-600">
+{`{
+  "apiBaseUrl": "http://192.168.1.42:4000",
+  "oauth": "enabled",
+  "provider": ["github", "google"]
+}`}
+              </pre>
+            </div>
+          </div>
+
+          <aside className="border-t border-gray-200 bg-white p-4 lg:border-l lg:border-t-0">
+            <p className="dev-label">Inspector</p>
+            {features.map((feature) => (
+              <div key={feature.title} className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <span className="text-cyan-600">{feature.icon}</span>
+                  {feature.title}
+                </div>
+                <p className="text-xs leading-5 text-gray-600">{feature.text}</p>
+              </div>
+            ))}
+          </aside>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReadmeBlock() {
+  return (
+    <section className="px-4 pb-16 md:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="code-window">
+          <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
+            <span className="font-mono text-xs text-gray-400">README.md</span>
+            <FileCode2 className="h-4 w-4 text-cyan-400" />
+          </div>
+          <div className="grid gap-8 p-5 md:grid-cols-[0.8fr_1.2fr] md:p-8">
+            <div>
+              <p className="font-mono text-sm text-cyan-300"># Reverse HTTP</p>
+              <h2 className="mt-3 text-2xl font-semibold text-white">
+                Serve config. Bridge OAuth. Keep your app moving.
+              </h2>
+            </div>
+            <div className="space-y-3 font-mono text-sm leading-7 text-gray-300">
+              <p><span className="text-cyan-300">GET</span> /app/config/:id</p>
+              <p><span className="text-cyan-300">GET</span> /oauth/github?client_id=:route</p>
+              <p><span className="text-cyan-300">SSE</span> /oauth/listen/:route</p>
+              <p><span className="text-cyan-300">302</span> http://192.168.x.x/callback?token=jwt</p>
+              <div className="mt-5 rounded-lg border border-gray-800 bg-black/30 p-4 text-xs">
+                npm run dev
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default function LandingPage() {
+  return (
+    <main className="app-page grid-canvas overflow-x-hidden">
+      <section className="px-4 py-8 md:px-8 md:py-12">
+        <div className="mx-auto max-w-7xl">
+          <BrowserWindow />
+        </div>
+      </section>
+      <WorkspacePreview />
+      <ReadmeBlock />
+      <footer className="border-t border-gray-200 bg-white/80 px-4 py-8 md:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm text-gray-500 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-2 text-gray-700">
+            <ShieldCheck className="h-4 w-4 text-cyan-500" />
+            Reverse HTTP
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <Link to="/app" className="hover:text-cyan-700">Config console</Link>
+            <Link to="/oauth" className="hover:text-cyan-700">OAuth routing</Link>
+            <Link to="/oauth/live" className="hover:text-cyan-700">Live dashboard</Link>
+            <Link to="/docs" className="hover:text-cyan-700">Docs</Link>
+          </div>
+        </div>
+      </footer>
+    </main>
+  );
+}

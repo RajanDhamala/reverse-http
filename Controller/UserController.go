@@ -104,8 +104,8 @@ func (ctrl *Controller) LoginUser(c *fiber.Ctx) error {
 	}
 
 	err = utils.ComaprePasswrod(
-		user.Password.String,
 		loginData.Password,
+		user.Password.String,
 	)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{

@@ -4,6 +4,7 @@ export const LazyLandingPage = lazy(() => import("../Pages/LandingPage.tsx"));
 export const LazyLoginPage = lazy(() => import("../Auth/LoginPage.tsx"));
 export const LazyRegisterPage = lazy(() => import("../Auth/RegisterPage.tsx"));
 export const LazyOAuthCallback = lazy(() => import("../Auth/OAuthCallback.tsx"));
+export const LazyOAuthLiveDashboard = lazy(() => import("../Auth/OAuthLiveDashboard.tsx"));
 export const LazyTestPage = lazy(() => import("../Pages/TestPage.tsx"));
 export const LazyAddRoute = lazy(() => import("../Pages/AddRoute.tsx"));
 
@@ -14,6 +15,5 @@ export const LazyUpdateConfig = lazy(() => import("../Pages/UpdateConfig.tsx"));
 
 
 export const LazyAppConfig = lazy(() => import("../Pages/AppConfig.tsx"));
-
 
 

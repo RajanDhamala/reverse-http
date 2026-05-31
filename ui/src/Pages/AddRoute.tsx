@@ -1,7 +1,27 @@
-import { useState } from "react";
-import type { FormEvent } from "react";
+import { useEffect, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle2, Edit, Eye, EyeOff, Globe2, KeyRound, Loader2, MoreVertical, Network, Plus, Route, Save, Search, ServerCog, Settings2, ShieldCheck, Tag, Trash2, X } from "lucide-react";
+import {
+  Activity,
+  CheckCircle2,
+  Chrome,
+  Copy,
+  Eye,
+  EyeOff,
+  Github,
+  Globe2,
+  KeyRound,
+  Loader2,
+  Network,
+  Pencil,
+  Plus,
+  Route,
+  ServerCog,
+  ShieldCheck,
+  Trash2,
+  X,
+} from "lucide-react";
+import toast from "react-hot-toast";
 
 interface ReverseHttpReq {
   client_secret: string;
@@ -25,18 +45,11 @@ interface EditState {
   endpoint: string;
 }
 
-type Notice = { type: "success" | "error"; text: string } | null;
-
 const BASE = "http://localhost:3000";
 
-const fieldClass =
-  "w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2.5 font-mono text-sm text-neutral-100 shadow-inner shadow-black/20 outline-none transition placeholder:text-neutral-700 focus:border-neutral-500 focus:ring-2 focus:ring-neutral-600/20";
-
-const labelClass =
-  "mb-2 flex items-center gap-2 text-xs font-medium text-neutral-500";
-
-const panelClass =
-  "border border-neutral-800 bg-neutral-900/70 shadow-2xl shadow-black/20";
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 async function readJson(response: Response) {
   return response.json().catch(() => ({}));
@@ -50,7 +63,9 @@ async function createReverseRoute(payload: ReverseHttpReq) {
     body: JSON.stringify(payload),
   });
   const data = await readJson(response);
-  if (!response.ok) throw new Error(data.error || "Failed to create route");
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to create route");
+  }
   return data;
 }
 
@@ -59,7 +74,10 @@ async function fetchReverseConfigs(): Promise<Config[]> {
     credentials: "include",
   });
   const data = await readJson(response);
-  if (!response.ok) throw new Error(data.error || "Failed to load configs");
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to load configs");
+  }
+
   return Array.isArray(data.data) ? data.data : [];
 }
 
@@ -71,20 +89,22 @@ async function updateReverseConfig(payload: EditState) {
     body: JSON.stringify(payload),
   });
   const data = await readJson(response);
-  if (!response.ok) throw new Error(data.error || "Failed to update config");
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to update config");
+
+  }
   return data;
 }
 
 async function fetchClientSecretById(id: string) {
-  const response = await fetch(
-    `${BASE}/reverse-http/clientKey/${encodeURIComponent(id)}`,
-    {
-      credentials: "include",
-    }
-  );
+  const response = await fetch(`${BASE}/reverse-http/clientKey/${encodeURIComponent(id)}`, {
+    credentials: "include",
+  });
   const data = await readJson(response);
-  if (!response.ok) throw new Error(data.error || "Failed to load client secret");
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to load client secret");
 
+  }
   const record = data.data || data.config || data;
   return {
     id,
@@ -93,68 +113,49 @@ async function fetchClientSecretById(id: string) {
 }
 
 async function deleteReverseConfig(id: string) {
-  const response = await fetch(
-    `${BASE}/reverse-http/truncate/${encodeURIComponent(id)}`,
-    {
-      method: "DELETE",
-      credentials: "include",
-    }
-  );
+  const response = await fetch(`${BASE}/reverse-http/truncate/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
   const data = await readJson(response);
-  if (!response.ok) throw new Error(data.error || data.message || "Failed to delete config");
+  if (!response.ok) {
+    throw new Error(data.error || data.message || "Failed to delete config");
+  }
   return data;
 }
 
-function cx(...parts: Array<string | false | null | undefined>) {
-  return parts.filter(Boolean).join(" ");
-}
-
 function shortId(id: string) {
-  if (!id) return "No id";
-  return id.length > 10 ? `${id.slice(0, 8)}..` : id;
+  return id.length > 12 ? `${id.slice(0, 8)}...${id.slice(-4)}` : id || "missing-id";
 }
 
-function NoticeBanner({ notice }: { notice: Notice }) {
-  if (!notice) return null;
-  const isSuccess = notice.type === "success";
-
+function MetricTile({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div
-      className={`mb-4 flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-lg shadow-black/20 ${isSuccess
-        ? "border-neutral-700 bg-neutral-900 text-neutral-100"
-        : "border-red-950/70 bg-red-950/20 text-red-200"
-        }`}
-      role="status"
-      aria-live="polite"
-    >
-      {isSuccess ? (
-        <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-      ) : (
-        <AlertCircle className="h-4 w-4" aria-hidden="true" />
-      )}
-      <span className="break-all">{notice.text}</span>
+    <div className="metric-card">
+      <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-md border border-cyan-200 bg-cyan-50 text-cyan-700">
+        {icon}
+      </div>
+      <p className="font-mono text-xs text-gray-500">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-gray-950">{value}</p>
     </div>
   );
 }
 
-const AddRoute = () => {
+export default function AddRoute() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [clientSecret, setClientSecret] = useState("");
-  const [editedConfig, setEditConfig] = useState<EditState>({
+  const [secretVisible, setSecretVisible] = useState(false);
+  const [editSecretVisible, setEditSecretVisible] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedConfig, setEditedConfig] = useState<EditState>({
     id: "",
     key: "",
     endpoint: "",
     client_secret: "",
   });
-  const [isEditing, setIsEditing] = useState(false);
   const [clientSecretDirty, setClientSecretDirty] = useState(false);
-  const [createSecretVisible, setCreateSecretVisible] = useState(false);
-  const [editSecretVisible, setEditSecretVisible] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
 
   const configsQuery = useQuery({
     queryKey: ["reverse-http-list"],
@@ -168,45 +169,53 @@ const AddRoute = () => {
     staleTime: Infinity,
   });
 
+  const configs = configsQuery.data ?? [];
+  const endpointCount = configs.filter((item) => item.endpoint).length;
+  const secretValue = clientSecretDirty
+    ? editedConfig.client_secret
+    : clientSecretQuery.data?.client_secret ?? editedConfig.client_secret;
+
+  useEffect(() => {
+    if (configsQuery.error) {
+      toast.error(getErrorMessage(configsQuery.error, "Failed to load routes"));
+    }
+  }, [configsQuery.error]);
+
+  useEffect(() => {
+    if (clientSecretQuery.error) {
+      toast.error(getErrorMessage(clientSecretQuery.error, "Failed to load client secret"));
+    }
+  }, [clientSecretQuery.error]);
+
   const createRouteMutation = useMutation({
     mutationFn: createReverseRoute,
-    onSuccess: (data) => {
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["reverse-http-list"] });
-      setNotice({
-        type: "success",
-        text: `Route created successfully${data.route_id ? `: ${data.route_id}` : ""}`,
-      });
       setName("");
       setEndpoint("");
       setClientSecret("");
+      toast.success("Route created");
     },
     onError: (error) => {
-      setNotice({
-        type: "error",
-        text: error instanceof Error ? error.message : "Failed to create route",
-      });
-    },
+      toast.error(getErrorMessage(error, "Failed to create route"));
+    }
   });
 
   const updateConfigMutation = useMutation({
     mutationFn: updateReverseConfig,
     onSuccess: (_data, updatedConfig) => {
       void queryClient.invalidateQueries({ queryKey: ["reverse-http-list"] });
-      queryClient.setQueryData(
-        ["reverse-http-client-secret", updatedConfig.id],
-        { id: updatedConfig.id, client_secret: updatedConfig.client_secret }
-      );
+      queryClient.setQueryData(["reverse-http-client-secret", updatedConfig.id], {
+        id: updatedConfig.id,
+        client_secret: updatedConfig.client_secret,
+      });
       setIsEditing(false);
       setClientSecretDirty(false);
-      setNotice({ type: "success", text: "Configuration saved" });
-      window.setTimeout(() => setNotice(null), 2500);
+      toast.success("Route updated");
     },
     onError: (error) => {
-      setNotice({
-        type: "error",
-        text: error instanceof Error ? error.message : "Failed to update config",
-      });
-    },
+      toast.error(getErrorMessage(error, "Failed to update route"));
+    }
   });
 
   const deleteConfigMutation = useMutation({
@@ -216,45 +225,21 @@ const AddRoute = () => {
         (current ?? []).filter((item) => item.id !== id)
       );
       void queryClient.invalidateQueries({ queryKey: ["reverse-http-list"] });
-      setOpenMenuId(null);
-      setDeleteConfirmId(null);
-      setNotice({ type: "success", text: "Configuration deleted" });
-      window.setTimeout(() => setNotice(null), 2500);
+      toast.success("Route deleted");
     },
     onError: (error) => {
-      setNotice({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Failed to delete configuration",
-      });
-    },
+      toast.error(getErrorMessage(error, "Failed to delete route"));
+    }
   });
-
-  const configs = configsQuery.data ?? [];
-  const endpointCount = configs.filter((item) => item.endpoint).length;
-  const deletingId = deleteConfigMutation.isPending
-    ? deleteConfigMutation.variables ?? null
-    : null;
-  const isClientSecretLoading = clientSecretQuery.isFetching;
-  const clientSecretValue = clientSecretDirty
-    ? editedConfig.client_secret
-    : clientSecretQuery.data?.client_secret ?? editedConfig.client_secret;
-  const clientSecretReady =
-    clientSecretDirty || Boolean(clientSecretQuery.data) || Boolean(editedConfig.client_secret);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setNotice(null);
-
     const trimmedName = name.trim();
     const trimmedEndpoint = endpoint.trim();
-    if (!trimmedName || !trimmedEndpoint) {
-      setNotice({ type: "error", text: "Route name and endpoint are required" });
+    if (!trimmedName || !trimmedEndpoint || !clientSecret.trim()) {
+      toast.error("Route name, endpoint, and client secret are required");
       return;
     }
-
     createRouteMutation.mutate({
       name: trimmedName,
       endpoint: trimmedEndpoint,
@@ -262,567 +247,239 @@ const AddRoute = () => {
     });
   };
 
-  const startEditingConfig = (item: Config) => {
-    if (!item.id) {
-      setNotice({ type: "error", text: "Configuration id is missing" });
-      return;
-    }
+  const copyText = async (text: string, key: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    toast.success("Copied to clipboard");
+    window.setTimeout(() => setCopiedKey(null), 1500);
+  };
 
-    setNotice(null);
-    setOpenMenuId(null);
-    setDeleteConfirmId(null);
-    setClientSecretDirty(false);
-    setEditSecretVisible(false);
-    const cachedClientSecret = queryClient.getQueryData<{
-      id: string;
-      client_secret: string;
-    }>(["reverse-http-client-secret", item.id]);
-    setEditConfig({
+  const startEditingConfig = (item: Config) => {
+    const cachedClientSecret = queryClient.getQueryData<{ id: string; client_secret: string }>([
+      "reverse-http-client-secret",
+      item.id,
+    ]);
+    setEditedConfig({
       id: item.id,
       key: item.key || item.name || "",
       endpoint: item.endpoint || "",
       client_secret: cachedClientSecret?.client_secret ?? "",
     });
+    setClientSecretDirty(false);
+    setEditSecretVisible(false);
     setIsEditing(true);
   };
 
-  const deleteConfig = (id: string) => {
-    if (!id) {
-      setNotice({ type: "error", text: "Configuration id is missing" });
-      return;
-    }
-
-    deleteConfigMutation.mutate(id);
-  };
+  const googleUrl = (id: string) => `${BASE}/oauth/google?client_id=${id}`;
+  const githubUrl = (id: string) => `${BASE}/oauth/github?client_id=${id}`;
 
   return (
-    <div className="min-h-screen w-full bg-neutral-950 px-4 py-6 text-neutral-100 md:px-8">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:48px_48px]" />
-
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-8 flex flex-col gap-5 border-b border-neutral-900 pb-6 md:flex-row md:items-end md:justify-between">
+    <main className="app-page grid-canvas px-4 py-6 md:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 text-xs text-neutral-500">
-              <ServerCog className="h-3.5 w-3.5" aria-hidden="true" />
-              Reverse HTTP control plane
-            </div>
-            <h1 className="text-3xl font-semibold text-white md:text-4xl">
-              OAuth Reverse HTTP
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
-              Create and manage the reverse HTTP routes used by OAuth redirect flows.
+            <span className="status-pill">OAuth Reverse HTTP</span>
+            <h1 className="mt-4 text-3xl font-semibold text-gray-950 md:text-4xl">OAuth Routes</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
+              Register private callback endpoints and copy provider start URLs for Google or GitHub.
             </p>
           </div>
-
-          <div className="grid grid-cols-2 gap-2 sm:min-w-[260px]">
-            <div className={panelClass + " rounded-xl p-4"}>
-              <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-400">
-                <Settings2 className="h-4 w-4" aria-hidden="true" />
-              </div>
-              <p className="text-xs text-neutral-500">Configs</p>
-              <p className="mt-1 text-2xl font-semibold text-neutral-100">
-                {configs.length}
-              </p>
-            </div>
-            <div className={panelClass + " rounded-xl p-4"}>
-              <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-400">
-                <Globe2 className="h-4 w-4" aria-hidden="true" />
-              </div>
-              <p className="text-xs text-neutral-500">Endpoints</p>
-              <p className="mt-1 text-2xl font-semibold text-neutral-100">
-                {endpointCount}
-              </p>
-            </div>
+          <div className="grid grid-cols-2 gap-2 md:min-w-[300px]">
+            <MetricTile label="Routes" value={String(configs.length)} icon={<Route className="h-4 w-4" />} />
+            <MetricTile label="Endpoints" value={String(endpointCount)} icon={<Globe2 className="h-4 w-4" />} />
           </div>
         </div>
 
-        <NoticeBanner notice={notice} />
-
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)]">
-          <div className={panelClass + " rounded-xl p-5 md:p-6"}>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+          <section className="chrome-card-strong rounded-xl p-5">
             <div className="mb-5 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-300">
-                <Route className="h-4 w-4" aria-hidden="true" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700">
+                <ServerCog className="h-4 w-4" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-neutral-100">
-                  Route setup
-                </h2>
-                <p className="mt-1 text-xs text-neutral-500">
-                  Name the route and point it at the internal callback endpoint.
-                </p>
+                <h2 className="text-base font-semibold text-gray-950">Route setup</h2>
+                <p className="mt-1 text-xs text-gray-500">Point public OAuth handoffs at your private callback.</p>
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className={labelClass}>
-                  <Tag className="h-3.5 w-3.5" aria-hidden="true" />
-                  Route name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="my-oauth-service"
-                  className={fieldClass}
-                />
+                <label className="dev-label">Route name</label>
+                <input value={name} onChange={(event) => setName(event.target.value)} className="dev-input" placeholder="my-oauth-service" />
               </div>
-
               <div>
-                <label className={labelClass}>
-                  <Globe2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  Private endpoint
-                </label>
-                <input
-                  type="text"
-                  value={endpoint}
-                  onChange={(event) => setEndpoint(event.target.value)}
-                  placeholder="http://192.168.x.x:3000/oauth/callback"
-                  className={fieldClass}
-                />
+                <label className="dev-label">Private endpoint</label>
+                <input value={endpoint} onChange={(event) => setEndpoint(event.target.value)} className="dev-input font-mono text-xs" placeholder="http://192.168.x.x:3030/oauth/google" />
               </div>
-
               <div>
-                <label className={labelClass}>
-                  <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-                  Client secret
-                </label>
+                <label className="dev-label">Client secret</label>
                 <div className="relative">
                   <input
-                    type={createSecretVisible ? "text" : "password"}
+                    type={secretVisible ? "text" : "password"}
                     value={clientSecret}
                     onChange={(event) => setClientSecret(event.target.value)}
-                    placeholder="secret key"
-                    className={fieldClass + " pr-10"}
+                    className="dev-input pr-10 font-mono text-xs"
+                    placeholder="shared signing secret"
                   />
                   <button
                     type="button"
-                    onClick={() => setCreateSecretVisible((current) => !current)}
-                    className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-neutral-500 transition hover:bg-neutral-900 hover:text-neutral-100"
-                    aria-label={
-                      createSecretVisible
-                        ? "Hide client secret"
-                        : "Show client secret"
-                    }
+                    onClick={() => setSecretVisible((current) => !current)}
+                    className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-cyan-700"
+                    aria-label={secretVisible ? "Hide client secret" : "Show client secret"}
                   >
-                    {createSecretVisible ? (
-                      <EyeOff className="h-4 w-4" aria-hidden="true" />
-                    ) : (
-                      <Eye className="h-4 w-4" aria-hidden="true" />
-                    )}
+                    {secretVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
-
-              <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-                <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-800 bg-black text-neutral-400">
-                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                </div>
-                <p className="text-sm font-medium text-neutral-100">OAuth ready</p>
-                <p className="mt-2 text-xs leading-5 text-neutral-500">
-                  This route becomes the reverse HTTP target used by redirect flows.
+              <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+                <ShieldCheck className="mb-3 h-5 w-5 text-cyan-700" />
+                <p className="text-sm font-semibold text-gray-950">OAuth ready</p>
+                <p className="mt-1 text-xs leading-5 text-gray-600">
+                  The saved id becomes the `client_id` query value for provider login.
                 </p>
-
-                <button
-                  type="submit"
-                  disabled={createRouteMutation.isPending}
-                  className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-neutral-100 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {createRouteMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  {createRouteMutation.isPending ? "Creating" : "Create route"}
-                </button>
               </div>
+              <button type="submit" disabled={createRouteMutation.isPending} className="dev-button dev-button-primary w-full">
+                {createRouteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Create route
+              </button>
             </form>
-          </div>
+          </section>
 
-          <div className={panelClass + " rounded-xl p-5 md:p-6"}>
-            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-300">
-                  <Network className="h-4 w-4" aria-hidden="true" />
-                </div>
-                <div>
-                  <h2 className="text-base font-semibold text-neutral-100">
-                    Proxy registry
-                  </h2>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    {configs.length} records loaded from the API
-                  </p>
-                </div>
-              </div>
+          <section className="chrome-card-strong overflow-hidden rounded-xl">
+            <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+              <p className="dev-label mb-0">
+                <Network className="h-3.5 w-3.5" />
+                Route Registry
+              </p>
             </div>
 
             {configsQuery.isLoading ? (
-              <div className="flex items-center justify-center gap-3 rounded-lg border border-neutral-800 bg-neutral-950 py-12 text-sm text-neutral-500">
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                Loading configurations
-              </div>
-            ) : configsQuery.isError ? (
-              <div className="rounded-lg border border-red-950/70 bg-red-950/20 px-6 py-10 text-center text-red-200">
-                <AlertCircle className="mx-auto h-8 w-8" aria-hidden="true" />
-                <p className="mt-4 text-sm font-medium">Failed to load configs</p>
-                <button
-                  type="button"
-                  onClick={() => void configsQuery.refetch()}
-                  className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg border border-red-900/70 bg-red-950/30 px-3 text-xs font-medium text-red-100 transition hover:border-red-700"
-                >
-                  <Search className="h-3.5 w-3.5" aria-hidden="true" />
-                  Retry
-                </button>
+              <div className="flex items-center gap-3 p-8 text-sm text-gray-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading routes
               </div>
             ) : configs.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-neutral-800 bg-neutral-950 px-6 py-12 text-center">
-                <ShieldCheck className="mx-auto h-8 w-8 text-neutral-700" aria-hidden="true" />
-                <p className="mt-4 text-sm font-medium text-neutral-300">
-                  No configurations found
-                </p>
+              <div className="p-10 text-center">
+                <Route className="mx-auto h-8 w-8 text-gray-300" />
+                <p className="mt-3 text-sm font-semibold text-gray-700">No routes yet</p>
               </div>
             ) : (
-              <div className="rounded-lg border border-neutral-800">
-                <div className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto] gap-4 border-b border-neutral-800 bg-neutral-950 px-4 py-3 text-xs text-neutral-500 md:grid">
-                  <span>Key</span>
-                  <span>Endpoint</span>
-                  <span>Identifier</span>
-                  <span>Action</span>
-                </div>
-
-                <div className="divide-y divide-neutral-800">
-                  {configs.map((item, idx) => {
-                    const label = item.key || item.name || "Unnamed";
-                    const actionKey = item.id || `row-${idx}`;
-                    const menuDropsUp = idx === configs.length - 1;
-
-                    return (
-                      <div
-                        key={item.id || idx}
-                        className={cx(
-                          "grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-neutral-900 px-4 py-4 transition hover:bg-neutral-900/60 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto] md:items-center",
-                          openMenuId === actionKey && "relative z-50"
-                        )}
-                      >
-                        <div className="col-span-2 min-w-0 md:col-span-1">
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-500">
-                              <KeyRound className="h-4 w-4" aria-hidden="true" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-neutral-100">
-                                {label}
-                              </p>
-                              <p className="mt-0.5 text-xs text-neutral-600">
-                                OAuth redirect target
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="col-span-2 min-w-0 md:col-span-1">
-                          <p className="truncate font-mono text-xs text-neutral-400">
-                            {item.endpoint || "No endpoint"}
-                          </p>
-                        </div>
-
-                        <div className="min-w-0">
-                          <span
-                            className="inline-flex max-w-full items-center rounded-md border border-neutral-800 bg-neutral-950 px-2 py-1 font-mono text-[11px] text-neutral-500"
-                            title={item.id}
-                          >
-                            <span className="truncate">{shortId(item.id)}</span>
-                          </span>
-                        </div>
-
-                        <div className="relative justify-self-end">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenMenuId((current) =>
-                                current === actionKey ? null : actionKey
-                              );
-                              setDeleteConfirmId(null);
-                            }}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-400 transition hover:border-neutral-600 hover:text-white"
-                            aria-label={`Open actions for ${label}`}
-                            title="Actions"
-                          >
-                            <MoreVertical className="h-4 w-4" aria-hidden="true" />
-                          </button>
-
-                          {openMenuId === actionKey ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenMenuId(null);
-                                  setDeleteConfirmId(null);
-                                }}
-                                className="fixed inset-0 z-40 cursor-default bg-transparent"
-                                aria-label="Close actions menu"
-                              />
-                              <div
-                                className={cx(
-                                  "fixed left-4 right-4 top-1/2 z-[70] w-auto -translate-y-1/2 rounded-lg border border-neutral-800 bg-neutral-950 p-1.5 shadow-2xl shadow-black/40 md:absolute md:left-auto md:right-0 md:top-auto md:w-52 md:translate-y-0",
-                                  menuDropsUp ? "md:bottom-full md:mb-2" : "md:mt-2"
-                                )}
-                              >
-                                {deleteConfirmId === actionKey ? (
-                                  <div className="p-2">
-                                    <p className="text-xs font-medium text-neutral-100">
-                                      Delete this route?
-                                    </p>
-                                    <p className="mt-1 text-[11px] leading-4 text-neutral-500">
-                                      This action cannot be undone.
-                                    </p>
-                                    <div className="mt-3 grid grid-cols-2 gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => setDeleteConfirmId(null)}
-                                        className="inline-flex h-8 items-center justify-center rounded-md border border-neutral-800 bg-neutral-900 text-xs font-medium text-neutral-300 transition hover:border-neutral-600 hover:text-white"
-                                      >
-                                        Cancel
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => deleteConfig(item.id)}
-                                        disabled={deletingId === item.id}
-                                        className={cx(
-                                          "inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-medium transition",
-                                          deletingId === item.id
-                                            ? "cursor-not-allowed border-red-950/70 bg-red-950/20 text-red-300/60"
-                                            : "border-red-900/70 bg-red-950/30 text-red-200 hover:border-red-700 hover:text-red-100"
-                                        )}
-                                      >
-                                        {deletingId === item.id ? (
-                                          <Loader2
-                                            className="h-3.5 w-3.5 animate-spin"
-                                            aria-hidden="true"
-                                          />
-                                        ) : (
-                                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                                        )}
-                                        Delete
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => startEditingConfig(item)}
-                                      className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-medium text-neutral-300 transition hover:bg-neutral-900 hover:text-white"
-                                    >
-                                      <Edit className="h-3.5 w-3.5" aria-hidden="true" />
-                                      Edit
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeleteConfirmId(actionKey)}
-                                      className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-medium text-red-200 transition hover:bg-red-950/30 hover:text-red-100"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                                      Delete
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        console.log("client id:", item.id)
-                                        console.log(` http://localhost:3000/oauth/google?client_id=${item.id}`)
-                                        navigator.clipboard.writeText(`http://localhost:3000/oauth/google?client_id=${item.id}`);
-                                        setOpenMenuId(null);
-                                      }}
-                                      className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-medium text-red-200 transition hover:bg-red-950/30 hover:text-red-100"
-                                    >
-                                      <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                                      Copy
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </>
-                          ) : null}
-                        </div>
+              <div className="divide-y divide-gray-200">
+                {configs.map((item) => {
+                  const label = item.key || item.name || "Unnamed route";
+                  return (
+                    <div key={item.id} className="grid gap-4 p-4 lg:grid-cols-[0.85fr_1.2fr_auto] lg:items-center">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-gray-950">{label}</p>
+                        <p className="mt-1 font-mono text-xs text-gray-400">{shortId(item.id)}</p>
                       </div>
-                    );
-                  })}
-                </div>
+                      <p className="min-w-0 truncate font-mono text-xs text-gray-600">{item.endpoint || "No endpoint"}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => void copyText(googleUrl(item.id), `google-${item.id}`)} className="dev-button h-9 min-h-9 px-3">
+                          {copiedKey === `google-${item.id}` ? <CheckCircle2 className="h-4 w-4 text-cyan-600" /> : <Chrome className="h-4 w-4" />}
+                          Google
+                        </button>
+                        <button type="button" onClick={() => void copyText(githubUrl(item.id), `github-${item.id}`)} className="dev-button h-9 min-h-9 px-3">
+                          {copiedKey === `github-${item.id}` ? <CheckCircle2 className="h-4 w-4 text-cyan-600" /> : <Github className="h-4 w-4" />}
+                          GitHub
+                        </button>
+                        <button type="button" onClick={() => { window.location.href = `/oauth/live?client_id=${encodeURIComponent(item.id)}`; }} className="dev-button h-9 min-h-9 px-3">
+                          <Activity className="h-4 w-4" />
+                          Live
+                        </button>
+                        <button type="button" onClick={() => startEditingConfig(item)} className="dev-button h-9 min-h-9 px-3">
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button type="button" onClick={() => deleteConfigMutation.mutate(item.id)} className="dev-button dev-button-danger h-9 min-h-9 px-3">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
-          </div>
+          </section>
         </div>
       </div>
 
-      {isEditing && (
+      {isEditing ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"
           onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setIsEditing(false);
-              setClientSecretDirty(false);
-            }
+            if (event.target === event.currentTarget) setIsEditing(false);
           }}
         >
-          <div className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl shadow-black/40">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-300">
-                  <Edit className="h-4 w-4" aria-hidden="true" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-neutral-100">
-                    Edit configuration
-                  </h2>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Update the key or private endpoint.
-                  </p>
-                </div>
+          <div className="chrome-card-strong w-full max-w-lg rounded-xl p-5">
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <p className="dev-label mb-2">
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit Route
+                </p>
+                <h2 className="text-lg font-semibold text-gray-950">{editedConfig.key || "OAuth route"}</h2>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditing(false);
-                  setClientSecretDirty(false);
-                }}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-500 transition hover:border-neutral-600 hover:text-white"
-                aria-label="Close edit modal"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
+              <button type="button" onClick={() => setIsEditing(false)} className="dev-button h-9 min-h-9 w-9 px-0" aria-label="Close edit modal">
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className={labelClass}>
-                  <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-                  API key
-                </label>
-                <input
-                  type="text"
-                  value={editedConfig.key}
-                  onChange={(event) =>
-                    setEditConfig({ ...editedConfig, key: event.target.value })
-                  }
-                  placeholder="Enter API key"
-                  className={fieldClass}
-                />
+                <label className="dev-label">API key</label>
+                <input value={editedConfig.key} onChange={(event) => setEditedConfig({ ...editedConfig, key: event.target.value })} className="dev-input" />
               </div>
-
               <div>
-                <label className={labelClass}>
-                  <Globe2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  Endpoint
-                </label>
-                <input
-                  type="text"
-                  value={editedConfig.endpoint}
-                  onChange={(event) =>
-                    setEditConfig({ ...editedConfig, endpoint: event.target.value })
-                  }
-                  placeholder="http://192.168.x.x:3000/oauth/callback"
-                  className={fieldClass}
-                />
+                <label className="dev-label">Endpoint</label>
+                <input value={editedConfig.endpoint} onChange={(event) => setEditedConfig({ ...editedConfig, endpoint: event.target.value })} className="dev-input font-mono text-xs" />
               </div>
-
               <div>
-                <label className={labelClass}>
-                  <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                <label className="dev-label">
+                  <KeyRound className="h-3.5 w-3.5" />
                   Client secret
                 </label>
                 <div className="relative">
                   <input
                     type={editSecretVisible ? "text" : "password"}
-                    value={clientSecretValue}
+                    value={secretValue}
                     onChange={(event) => {
                       setClientSecretDirty(true);
-                      setEditConfig({
-                        ...editedConfig,
-                        client_secret: event.target.value,
-                      });
+                      setEditedConfig({ ...editedConfig, client_secret: event.target.value });
                     }}
-                    placeholder={
-                      isClientSecretLoading
-                        ? "Loading client secret"
-                        : "Client secret"
-                    }
-                    disabled={isClientSecretLoading}
-                    className={fieldClass + " pr-10 disabled:cursor-wait disabled:opacity-60"}
+                    disabled={clientSecretQuery.isFetching}
+                    className="dev-input pr-10 font-mono text-xs disabled:cursor-wait disabled:bg-gray-50"
+                    placeholder={clientSecretQuery.isFetching ? "Loading client secret" : "Client secret"}
                   />
                   <button
                     type="button"
                     onClick={() => setEditSecretVisible((current) => !current)}
-                    disabled={isClientSecretLoading}
-                    className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-neutral-500 transition hover:bg-neutral-900 hover:text-neutral-100 disabled:cursor-wait disabled:opacity-50"
-                    aria-label={
-                      editSecretVisible
-                        ? "Hide client secret"
-                        : "Show client secret"
-                    }
+                    disabled={clientSecretQuery.isFetching}
+                    className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-cyan-700 disabled:cursor-wait"
+                    aria-label={editSecretVisible ? "Hide client secret" : "Show client secret"}
                   >
-                    {isClientSecretLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : editSecretVisible ? (
-                      <EyeOff className="h-4 w-4" aria-hidden="true" />
-                    ) : (
-                      <Eye className="h-4 w-4" aria-hidden="true" />
-                    )}
+                    {clientSecretQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : editSecretVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {clientSecretQuery.isError ? (
-                  <p className="mt-2 text-xs text-red-200">
-                    {clientSecretQuery.error instanceof Error
-                      ? clientSecretQuery.error.message
-                      : "Could not load the client secret. Close and choose Edit again."}
-                  </p>
-                ) : null}
               </div>
             </div>
 
-            <div className="mt-5 flex gap-2 border-t border-neutral-800 pt-4">
+            <div className="mt-5 flex gap-2 border-t border-gray-200 pt-4">
               <button
                 type="button"
-                onClick={() =>
-                  updateConfigMutation.mutate({
-                    ...editedConfig,
-                    client_secret: clientSecretValue,
-                  })
-                }
-                disabled={
-                  updateConfigMutation.isPending ||
-                  isClientSecretLoading ||
-                  !clientSecretReady
-                }
-                className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-neutral-100 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => updateConfigMutation.mutate({ ...editedConfig, client_secret: secretValue })}
+                disabled={updateConfigMutation.isPending || clientSecretQuery.isFetching}
+                className="dev-button dev-button-primary flex-1"
               >
-                {updateConfigMutation.isPending || isClientSecretLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Save className="h-4 w-4" aria-hidden="true" />
-                )}
-                {isClientSecretLoading
-                  ? "Loading secret"
-                  : updateConfigMutation.isPending
-                    ? "Saving"
-                    : "Save changes"}
+                {updateConfigMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+                Save changes
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditing(false);
-                  setClientSecretDirty(false);
-                }}
-                className="inline-flex h-10 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 px-4 text-sm font-medium text-neutral-300 transition hover:border-neutral-600 hover:text-white"
-              >
-                Cancel
+              <button type="button" onClick={() => void copyText(googleUrl(editedConfig.id), `modal-${editedConfig.id}`)} className="dev-button px-3">
+                {copiedKey === `modal-${editedConfig.id}` ? <CheckCircle2 className="h-4 w-4 text-cyan-600" /> : <Copy className="h-4 w-4" />}
               </button>
             </div>
           </div>
         </div>
-      )}
-    </div>
+      ) : null}
+    </main>
   );
-};
-
-export default AddRoute;
+}

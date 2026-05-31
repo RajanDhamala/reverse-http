@@ -491,28 +491,28 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 
 const updateAppConfig = `-- name: UpdateAppConfig :one
 UPDATE app_configs SET
-    app_name = COALESCE($3, app_name),
-    endpoint  = COALESCE($4, endpoint),
-    configs   = COALESCE($5, configs)
-WHERE id = $1 AND user_id = $2
+    app_name = COALESCE($1, app_name),
+    endpoint  = COALESCE($2, endpoint),
+    configs   = COALESCE($3, configs)
+WHERE id = $4 AND user_id = $5
 RETURNING id, app_name, endpoint, configs, user_id, created_at, updated_at
 `
 
 type UpdateAppConfigParams struct {
+	AppName  pgtype.Text `json:"app_name"`
+	Endpoint pgtype.Text `json:"endpoint"`
+	Configs  []byte      `json:"configs"`
 	ID       pgtype.UUID `json:"id"`
 	UserID   pgtype.UUID `json:"user_id"`
-	AppName  string      `json:"app_name"`
-	Endpoint string      `json:"endpoint"`
-	Configs  []byte      `json:"configs"`
 }
 
 func (q *Queries) UpdateAppConfig(ctx context.Context, arg UpdateAppConfigParams) (AppConfig, error) {
 	row := q.db.QueryRow(ctx, updateAppConfig,
-		arg.ID,
-		arg.UserID,
 		arg.AppName,
 		arg.Endpoint,
 		arg.Configs,
+		arg.ID,
+		arg.UserID,
 	)
 	var i AppConfig
 	err := row.Scan(
