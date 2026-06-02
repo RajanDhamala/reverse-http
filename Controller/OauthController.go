@@ -582,7 +582,8 @@ func (ctrl *Controller) GoogleLoginCallbackSas(c *fiber.Ctx) error {
 	})
 
 	ctrl.publishOAuthEvent(callbackURL, "google", "success", c.Path())
-	return redirectWithUserData(c, oauthData)
+	return c.Redirect("http://loclalhost:5173/")
+	// return redirectWithUserData(c, oauthData)
 }
 
 func (ctrl *Controller) GithubLoginSasCallback(c *fiber.Ctx) error {
@@ -776,5 +777,7 @@ func (ctrl *Controller) GithubLoginSasCallback(c *fiber.Ctx) error {
 	})
 
 	ctrl.publishOAuthEvent(callbackURL, "github", "success", c.Path())
-	return redirectWithUserData(c, oauthData)
+
+	return c.Redirect("http://loclalhost:5173/")
+	// return redirectWithUserData(c, oauthData)
 }
