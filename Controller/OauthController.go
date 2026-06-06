@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -51,7 +50,7 @@ type GoogleUser struct {
 func redirectWithUserData(c *fiber.Ctx, data OAuthUserData) error {
 	jsonData, _ := json.Marshal(data)
 	encodedData := url.QueryEscape(string(jsonData))
-	redirectURL := fmt.Sprintf("http://localhost:5173/oauth/callback?data=%s", encodedData)
+	redirectURL := utils.FrontendURL(fmt.Sprintf("/oauth/callback?data=%s", encodedData))
 	return c.Redirect(redirectURL, fiber.StatusSeeOther)
 }
 
@@ -81,14 +80,7 @@ func redirectWithError(c *fiber.Ctx, errMsg string) error {
 }
 
 func frontendURL(path string) string {
-	baseURL := strings.TrimRight(os.Getenv("FRONTEND_URL"), "/")
-	if baseURL == "" {
-		baseURL = "http://localhost:5173"
-	}
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
-	}
-	return baseURL + path
+	return utils.FrontendURL(path)
 }
 
 func safePageURL(value string, fallback string) string {
@@ -568,7 +560,9 @@ func (ctrl *Controller) GoogleLoginCallbackSas(c *fiber.Ctx) error {
 		Value:    NewAccessToken,
 		HTTPOnly: true,
 		Path:     "/",
-		Secure:   false, // true in production env
+		Secure:   utils.CookieSecure(),
+		SameSite: utils.CookieSameSite(),
+		Domain:   utils.CookieDomain(),
 		Expires:  time.Now().Add(15 * time.Minute),
 	})
 
@@ -577,12 +571,14 @@ func (ctrl *Controller) GoogleLoginCallbackSas(c *fiber.Ctx) error {
 		Value:    NewRefreshToken,
 		HTTPOnly: true,
 		Path:     "/",
-		Secure:   false,
+		Secure:   utils.CookieSecure(),
+		SameSite: utils.CookieSameSite(),
+		Domain:   utils.CookieDomain(),
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 	})
 
 	ctrl.publishOAuthEvent(callbackURL, "google", "success", c.Path())
-	return c.Redirect("http://localhost:5173/")
+	return c.Redirect(utils.FrontendURL("/"))
 	// return redirectWithUserData(c, oauthData)
 }
 
@@ -763,7 +759,9 @@ func (ctrl *Controller) GithubLoginSasCallback(c *fiber.Ctx) error {
 		Value:    NewAccessToken,
 		HTTPOnly: true,
 		Path:     "/",
-		Secure:   false, // true in production env
+		Secure:   utils.CookieSecure(),
+		SameSite: utils.CookieSameSite(),
+		Domain:   utils.CookieDomain(),
 		Expires:  time.Now().Add(15 * time.Minute),
 	})
 
@@ -772,12 +770,14 @@ func (ctrl *Controller) GithubLoginSasCallback(c *fiber.Ctx) error {
 		Value:    NewRefreshToken,
 		HTTPOnly: true,
 		Path:     "/",
-		Secure:   false,
+		Secure:   utils.CookieSecure(),
+		SameSite: utils.CookieSameSite(),
+		Domain:   utils.CookieDomain(),
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 	})
 
 	ctrl.publishOAuthEvent(callbackURL, "github", "success", c.Path())
 
-	return c.Redirect("http://localhost:5173/")
+	return c.Redirect(utils.FrontendURL("/"))
 	// return redirectWithUserData(c, oauthData)
 }

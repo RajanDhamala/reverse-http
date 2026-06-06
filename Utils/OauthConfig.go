@@ -22,7 +22,7 @@ func GoogleConfig() oauth2.Config {
 	redirectURL := os.Getenv("GOOGLE_REDIRECT_URI")
 
 	if redirectURL == "" {
-		redirectURL = "http://localhost:3000/oauth/google/callback"
+		redirectURL = BackendURL("/oauth/google/callback")
 	}
 
 	if clientId == "" || clientSecret == "" {
@@ -49,7 +49,7 @@ func GithubConfig() oauth2.Config {
 	redirectURL := os.Getenv("GITHUB_REDIRECT_URI")
 
 	if redirectURL == "" {
-		redirectURL = "http://192.168.18.26:3000/oauth/github/callback"
+		redirectURL = BackendURL("/oauth/github/callback")
 	}
 
 	if clientId == "" || clientSecret == "" {

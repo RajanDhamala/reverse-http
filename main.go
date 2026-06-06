@@ -22,11 +22,14 @@ import (
 func main() {
 	err := godotenv.Load("./.env")
 	if err != nil {
-		log.Fatal("Error loading .env file:", err)
+		log.Println("No .env file loaded; using process environment")
 	}
 
 	host := os.Getenv("HOST")
 	redisKey := os.Getenv("REDIS_URL")
+	if redisKey == "" {
+		log.Fatal("REDIS_URL is not set")
+	}
 	dbPool, err := database.ConnectDB()
 	if err != nil {
 		log.Fatal("Error connecting to the database:", err)
@@ -51,13 +54,21 @@ func main() {
 
 	app.Use(recover.New())
 
+	allowOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if allowOrigins == "" {
+		allowOrigins = utils.FrontendBaseURL()
+	}
+
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:3000,http://localhost:5173,http://localhost:5174",
+		AllowOrigins:     allowOrigins,
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowMethods:     "GET,POST,PUT,DELETE,PATCH,OPTIONS",
 		AllowCredentials: true,
 	}))
-	opt, _ := redis.ParseURL(redisKey)
+	opt, err := redis.ParseURL(redisKey)
+	if err != nil {
+		log.Fatal("Error parsing REDIS_URL:", err)
+	}
 	redisClient := redis.NewClient(opt)
 
 	ctrl := controller.NewController(sqlc.New(dbPool), dbPool, redisClient)

@@ -41,7 +41,9 @@ func AuthMe(c *fiber.Ctx) error {
 				Name:     "accessToken",
 				Value:    NewAccessToken,
 				HTTPOnly: true,
-				Secure:   false, // true in production env
+				Secure:   utils.CookieSecure(),
+				SameSite: utils.CookieSameSite(),
+				Domain:   utils.CookieDomain(),
 				Expires:  time.Now().Add(15 * time.Minute),
 			})
 

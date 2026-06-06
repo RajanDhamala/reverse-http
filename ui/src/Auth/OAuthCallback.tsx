@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import axios from "axios";
 import { AlertCircle, CheckCircle2, Chrome, LogOut, Terminal } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { apiUrl, frontendAddress } from "../Utils/env";
 
 interface OAuthUserData {
   provider: string;
@@ -44,7 +45,7 @@ export default function OAuthCallback() {
   }, [error]);
 
   const logoutUser = async () => {
-    await axios.get("http://localhost:3000/user/logout", {
+    await axios.get(apiUrl("/user/logout"), {
       withCredentials: true,
     });
   };
@@ -61,7 +62,7 @@ export default function OAuthCallback() {
           <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full border border-gray-200 bg-white px-3">
             <Chrome className="h-3.5 w-3.5 text-cyan-500" />
             <span className="truncate font-mono text-xs text-gray-500">
-              reverse-http.local/oauth/callback
+              {frontendAddress("/oauth/callback")}
             </span>
           </div>
         </div>

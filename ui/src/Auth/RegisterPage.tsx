@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast"
 import { Chrome, Eye, EyeOff, Github, Lock, Mail, ServerCog, User } from "lucide-react";
+import { frontendAddress, oauthProviderUrl } from "../Utils/env";
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
@@ -21,11 +22,11 @@ export default function RegisterPage() {
   };
 
   const googleOauth = () => {
-    window.location.href = "http://localhost:3000/oauth/google";
+    window.location.href = oauthProviderUrl("google");
   };
 
   const githubOauth = () => {
-    window.location.href = "http://localhost:3000/oauth/github";
+    window.location.href = oauthProviderUrl("github");
   };
 
   return (
@@ -40,7 +41,7 @@ export default function RegisterPage() {
           <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full border border-gray-200 bg-white px-3">
             <Chrome className="h-3.5 w-3.5 text-cyan-500" />
             <span className="truncate font-mono text-xs text-gray-500">
-              reverse-http.local/register
+              {frontendAddress("/register")}
             </span>
           </div>
         </div>

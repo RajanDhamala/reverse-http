@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Compass, Home } from "lucide-react";
+import { frontendAddress } from "../Utils/env";
 
 export default function Error404Page() {
   return (
@@ -12,7 +13,7 @@ export default function Error404Page() {
             <span className="h-3 w-3 rounded-full bg-[#28c840]" />
           </div>
           <span className="truncate font-mono text-xs text-gray-500">
-            reverse-http.local/404
+            {frontendAddress("/404")}
           </span>
         </div>
         <section className="bg-white p-8 text-center">

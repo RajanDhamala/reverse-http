@@ -12,6 +12,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
+import { apiUrl, oauthProviderUrl } from "../Utils/env";
 
 type OAuthProvider = "github" | "google" | "stream";
 type StreamState = "connecting" | "live" | "reconnecting" | "closed" | "missing";
@@ -24,7 +25,6 @@ interface OAuthStreamEvent {
   time: string;
 }
 
-const baseURL = "http://localhost:3000";
 const maxLogRows = 200;
 
 const phaseLabels: Record<string, string> = {
@@ -56,7 +56,7 @@ function pushLogRow(current: OAuthStreamEvent[], event: OAuthStreamEvent) {
 }
 
 function publicProviderUrl(provider: "github" | "google", routeID: string) {
-  return `${baseURL}/oauth/${provider}?client_id=${encodeURIComponent(routeID)}`;
+  return oauthProviderUrl(provider, routeID);
 }
 
 export default function OAuthLiveDashboard() {
@@ -71,7 +71,7 @@ export default function OAuthLiveDashboard() {
   useEffect(() => {
     if (!routeID) return;
 
-    const source = new EventSource(`${baseURL}/oauth/listen/${routeID}`, {
+    const source = new EventSource(apiUrl(`/oauth/listen/${encodeURIComponent(routeID)}`), {
       withCredentials: true,
     });
 

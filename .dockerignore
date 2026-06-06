@@ -28,6 +28,10 @@ Thumbs.db
 .env
 .env*
 
-# Node / frontend if any
+# Frontend and local sandbox apps
+ui/
+express/
+
+# Node / frontend build output
 node_modules/
 dist/

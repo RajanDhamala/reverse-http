@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { apiUrl } from "../Utils/env";
 
 type Tab = "list" | "create" | "edit";
 type EditorMode = "pairs" | "json";
@@ -49,14 +50,12 @@ type ConfigRecord = {
   config?: ConfigMap;
 };
 
-const BASE = "http://localhost:3000";
-
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
 async function req(path: string, method: "GET" | "POST" | "PATCH" | "DELETE" = "GET", body?: unknown) {
-  return fetch(BASE + path, {
+  return fetch(apiUrl(path), {
     method,
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -131,7 +130,7 @@ function pickConfigs(cfg: ConfigRecord): ConfigMap {
 }
 
 function getAppConfigUrl(id: string) {
-  return `${BASE}/app/config/${id}`;
+  return apiUrl(`/app/config/${id}`);
 }
 
 function parseJsonObject(input: string) {

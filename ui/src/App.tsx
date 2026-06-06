@@ -9,6 +9,7 @@ import { Toaster } from "react-hot-toast";
 import Navbar from "./components/Navbar";
 import { type AuthUser, useUserStore } from "./Zustand/userStore.ts";
 import Error404Page from "./Pages/404ErrorPage.tsx";
+import { apiUrl } from "./Utils/env";
 function App() {
   const { setUser, clearUser, setAuthLoading } = useUserStore();
 
@@ -20,7 +21,7 @@ function App() {
       setAuthLoading();
 
       try {
-        const res = await fetch("http://localhost:3000/user/me", {
+        const res = await fetch(apiUrl("/user/me"), {
           method: "GET",
           credentials: "include",
           signal: controller.signal,

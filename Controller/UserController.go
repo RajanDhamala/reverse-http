@@ -137,7 +137,9 @@ func (ctrl *Controller) LoginUser(c *fiber.Ctx) error {
 		Value:    accessToken,
 		HTTPOnly: true,
 		Path:     "/",
-		Secure:   false,
+		Secure:   utils.CookieSecure(),
+		SameSite: utils.CookieSameSite(),
+		Domain:   utils.CookieDomain(),
 		Expires:  time.Now().Add(15 * time.Minute),
 	})
 
@@ -146,7 +148,9 @@ func (ctrl *Controller) LoginUser(c *fiber.Ctx) error {
 		Value:    refreshToken,
 		HTTPOnly: true,
 		Path:     "/",
-		Secure:   false,
+		Secure:   utils.CookieSecure(),
+		SameSite: utils.CookieSameSite(),
+		Domain:   utils.CookieDomain(),
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 	})
 
@@ -243,7 +247,9 @@ func (ctrl *Controller) LogoutUser(c *fiber.Ctx) error {
 		Path:     "/",
 		MaxAge:   -1,
 		HTTPOnly: false,
-		Secure:   false,
+		Secure:   utils.CookieSecure(),
+		SameSite: utils.CookieSameSite(),
+		Domain:   utils.CookieDomain(),
 		Expires:  time.Now().Add(-time.Hour), // Set to past time
 	})
 
@@ -254,7 +260,9 @@ func (ctrl *Controller) LogoutUser(c *fiber.Ctx) error {
 		Path:     "/",
 		MaxAge:   -1,
 		HTTPOnly: false,
-		Secure:   false,
+		Secure:   utils.CookieSecure(),
+		SameSite: utils.CookieSameSite(),
+		Domain:   utils.CookieDomain(),
 		Expires:  time.Now().Add(-time.Hour), // Set to past time
 	})
 

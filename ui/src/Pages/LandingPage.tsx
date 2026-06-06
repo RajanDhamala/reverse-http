@@ -19,6 +19,7 @@ import {
   Terminal,
   Wifi,
 } from "lucide-react";
+import { frontendAddress } from "../Utils/env";
 
 const releaseNotes = [
   "Stream OAuth route traffic through /oauth/live?client_id=:route.",
@@ -191,7 +192,7 @@ function BrowserWindow() {
         <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full border border-gray-200 bg-white px-3">
           <Chrome className="h-3.5 w-3.5 text-cyan-500" aria-hidden="true" />
           <span className="truncate font-mono text-xs text-gray-500">
-            reverse-http.dev/oauth/live
+            {frontendAddress("/oauth/live")}
           </span>
         </div>
         <span className="rounded-md border border-cyan-200 bg-cyan-50 p-1.5 text-cyan-600">

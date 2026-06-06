@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 import { type AuthUser, useUserStore } from "../Zustand/userStore";
+import { apiUrl } from "../Utils/env";
 
 const navItems = [
   { label: "Landing", to: "/" },
@@ -95,7 +96,7 @@ function ProfileMenu({
     setIsLoggingOut(true);
 
     try {
-      await fetch("http://localhost:3000/user/logout", {
+      await fetch(apiUrl("/user/logout"), {
         method: "GET",
         credentials: "include",
       });

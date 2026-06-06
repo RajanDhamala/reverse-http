@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { apiUrl, oauthProviderUrl } from "../Utils/env";
 
 interface ReverseHttpReq {
   client_secret: string;
@@ -45,8 +46,6 @@ interface EditState {
   endpoint: string;
 }
 
-const BASE = "http://localhost:3000";
-
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -56,7 +55,7 @@ async function readJson(response: Response) {
 }
 
 async function createReverseRoute(payload: ReverseHttpReq) {
-  const response = await fetch(`${BASE}/reverse-http/add`, {
+  const response = await fetch(apiUrl("/reverse-http/add"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -70,7 +69,7 @@ async function createReverseRoute(payload: ReverseHttpReq) {
 }
 
 async function fetchReverseConfigs(): Promise<Config[]> {
-  const response = await fetch(`${BASE}/reverse-http/list`, {
+  const response = await fetch(apiUrl("/reverse-http/list"), {
     credentials: "include",
   });
   const data = await readJson(response);
@@ -82,7 +81,7 @@ async function fetchReverseConfigs(): Promise<Config[]> {
 }
 
 async function updateReverseConfig(payload: EditState) {
-  const response = await fetch(`${BASE}/reverse-http/edit`, {
+  const response = await fetch(apiUrl("/reverse-http/edit"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -97,7 +96,7 @@ async function updateReverseConfig(payload: EditState) {
 }
 
 async function fetchClientSecretById(id: string) {
-  const response = await fetch(`${BASE}/reverse-http/clientKey/${encodeURIComponent(id)}`, {
+  const response = await fetch(apiUrl(`/reverse-http/clientKey/${encodeURIComponent(id)}`), {
     credentials: "include",
   });
   const data = await readJson(response);
@@ -113,7 +112,7 @@ async function fetchClientSecretById(id: string) {
 }
 
 async function deleteReverseConfig(id: string) {
-  const response = await fetch(`${BASE}/reverse-http/truncate/${encodeURIComponent(id)}`, {
+  const response = await fetch(apiUrl(`/reverse-http/truncate/${encodeURIComponent(id)}`), {
     method: "DELETE",
     credentials: "include",
   });
@@ -270,8 +269,8 @@ export default function AddRoute() {
     setIsEditing(true);
   };
 
-  const googleUrl = (id: string) => `${BASE}/oauth/google?client_id=${id}`;
-  const githubUrl = (id: string) => `${BASE}/oauth/github?client_id=${id}`;
+  const googleUrl = (id: string) => oauthProviderUrl("google", id);
+  const githubUrl = (id: string) => oauthProviderUrl("github", id);
 
   return (
     <main className="app-page grid-canvas px-4 py-6 md:px-8">
