@@ -1,7 +1,7 @@
 import { Suspense, useEffect } from "react";
 import "./index.css";
 import { LazyLandingPage, LazyRegisterPage, LazyLoginPage, LazyTestPage, LazyOAuthCallback, LazyOAuthLiveDashboard, LazyUpdateConfig, LazyAppConfig, LazyDocumentationPage } from "./LazyLoading/LazyLoading";
-import { BrowserRouter as Router, Routes, Route, } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import queryClient from "./Utils/QueryConfig.tsx";
 import Loader from "./LazyLoading/Loader.tsx";
@@ -10,6 +10,7 @@ import Navbar from "./components/Navbar";
 import { type AuthUser, useUserStore } from "./Zustand/userStore.ts";
 import Error404Page from "./Pages/404ErrorPage.tsx";
 import { apiUrl } from "./Utils/env";
+
 function App() {
   const { setUser, clearUser, setAuthLoading } = useUserStore();
 

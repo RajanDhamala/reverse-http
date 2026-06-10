@@ -20,7 +20,8 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { apiUrl } from "../Utils/env";
+import { apiUrl, publicApiUrl } from "../Utils/env";
+import { useUserStore } from "../Zustand/userStore";
 
 type Tab = "list" | "create" | "edit";
 type EditorMode = "pairs" | "json";
@@ -130,7 +131,7 @@ function pickConfigs(cfg: ConfigRecord): ConfigMap {
 }
 
 function getAppConfigUrl(id: string) {
-  return apiUrl(`/app/config/${id}`);
+  return publicApiUrl(`/app/config/${id}`);
 }
 
 function parseJsonObject(input: string) {
@@ -360,6 +361,8 @@ function PairEditor({
 
 export default function AppConfig() {
   const queryClient = useQueryClient();
+  const { authStatus, isLoggedIn } = useUserStore();
+  const canAccessData = authStatus === "authenticated" && isLoggedIn;
   const [tab, setTab] = useState<Tab>("list");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -383,8 +386,9 @@ export default function AppConfig() {
   const configsQuery = useQuery({
     queryKey: ["app-configs"],
     queryFn: fetchAppConfigs,
+    enabled: canAccessData,
   });
-  const configs = configsQuery.data ?? [];
+  const configs = canAccessData ? configsQuery.data ?? [] : [];
 
   useEffect(() => {
     if (configsQuery.error) {
@@ -473,6 +477,12 @@ export default function AppConfig() {
   const endpointCount = configs.filter((cfg) => pickEndpoint(cfg)).length;
   const configKeyCount = configs.reduce((sum, cfg) => sum + Object.keys(pickConfigs(cfg)).length, 0);
 
+  const requireLogin = () => {
+    if (canAccessData) return true;
+    toast.error("Please login to manage app configs");
+    return false;
+  };
+
   const copyUrl = async (id: string, key: string) => {
     await navigator.clipboard.writeText(getAppConfigUrl(id));
     setCopiedKey(key);
@@ -481,6 +491,7 @@ export default function AppConfig() {
   };
 
   const startEdit = (cfg: ConfigRecord) => {
+    if (!requireLogin()) return;
     const id = pickId(cfg);
     setTab("edit");
     setEditId(id);
@@ -493,6 +504,7 @@ export default function AppConfig() {
   };
 
   const createConfig = () => {
+    if (!requireLogin()) return;
     try {
       const configs = createMode === "json" ? parseJsonObject(createJson) : pairsToConfig(createPairs);
       createMutation.mutate({
@@ -506,6 +518,7 @@ export default function AppConfig() {
   };
 
   const updateConfig = () => {
+    if (!requireLogin()) return;
     try {
       const configs = editMode === "json" ? parseJsonObject(editJson) : pairsToConfig(editPairs);
       updateMutation.mutate({
@@ -652,7 +665,13 @@ export default function AppConfig() {
                           <Pencil className="h-4 w-4" />
                           Edit
                         </button>
-                        <button type="button" onClick={() => deleteMutation.mutate(id)} className="dev-button dev-button-danger h-9 min-h-9 px-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (requireLogin()) deleteMutation.mutate(id);
+                          }}
+                          className="dev-button dev-button-danger h-9 min-h-9 px-3"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -747,7 +766,14 @@ export default function AppConfig() {
               </div>
               <div className="mb-4 flex flex-col gap-2 sm:flex-row">
                 <input value={editId} onChange={(event) => setEditId(event.target.value)} className="dev-input font-mono" placeholder="config id" />
-                <button type="button" onClick={() => loadMutation.mutate(editId.trim())} className="dev-button min-w-[108px]" disabled={loadMutation.isPending}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (requireLogin()) loadMutation.mutate(editId.trim());
+                  }}
+                  className="dev-button min-w-[108px]"
+                  disabled={loadMutation.isPending}
+                >
                   {loadMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   Load
                 </button>

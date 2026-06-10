@@ -12,7 +12,9 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import { apiUrl, oauthProviderUrl } from "../Utils/env";
+import { useUserStore } from "../Zustand/userStore";
 
 type OAuthProvider = "github" | "google" | "stream";
 type StreamState = "connecting" | "live" | "reconnecting" | "closed" | "missing";
@@ -60,6 +62,8 @@ function publicProviderUrl(provider: "github" | "google", routeID: string) {
 }
 
 export default function OAuthLiveDashboard() {
+  const { authStatus, isLoggedIn } = useUserStore();
+  const canAccessStream = authStatus === "authenticated" && isLoggedIn;
   const [searchParams] = useSearchParams();
   const routeID = searchParams.get("client_id") || searchParams.get("id") || "";
   const shortRouteID = routeID ? routeID.slice(0, 8) : "missing";
@@ -69,7 +73,7 @@ export default function OAuthLiveDashboard() {
   const logRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!routeID) return;
+    if (!routeID || !canAccessStream) return;
 
     const source = new EventSource(apiUrl(`/oauth/listen/${encodeURIComponent(routeID)}`), {
       withCredentials: true,
@@ -88,7 +92,13 @@ export default function OAuthLiveDashboard() {
       source.close();
       setStreamState("closed");
     };
-  }, [routeID]);
+  }, [canAccessStream, routeID]);
+
+  useEffect(() => {
+    if (authStatus === "unauthenticated") {
+      toast.error("Please login to monitor OAuth routes");
+    }
+  }, [authStatus]);
 
   useEffect(() => {
     logRef.current?.scrollTo({
@@ -103,13 +113,15 @@ export default function OAuthLiveDashboard() {
     window.setTimeout(() => setCopied(null), 1400);
   };
 
-  const streamCopy = streamState === "live"
+  const visibleStreamState = authStatus === "unauthenticated" ? "closed" : streamState;
+
+  const streamCopy = visibleStreamState === "live"
     ? "LIVE"
-    : streamState === "reconnecting"
+    : visibleStreamState === "reconnecting"
       ? "RECONNECTING"
-      : streamState === "closed"
+      : visibleStreamState === "closed"
         ? "CLOSED"
-        : streamState === "missing"
+        : visibleStreamState === "missing"
           ? "NO ROUTE"
           : "CONNECTING";
 
@@ -170,7 +182,7 @@ export default function OAuthLiveDashboard() {
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <p className="dev-label mb-2">Connection</p>
                 <div className="flex items-center gap-2 font-mono text-sm font-semibold text-gray-950">
-                  {streamState === "closed" || streamState === "missing" ? <WifiOff className="h-4 w-4 text-rose-500" /> : <Wifi className="h-4 w-4 text-cyan-600" />}
+                  {visibleStreamState === "closed" || visibleStreamState === "missing" ? <WifiOff className="h-4 w-4 text-rose-500" /> : <Wifi className="h-4 w-4 text-cyan-600" />}
                   {streamCopy}
                 </div>
               </div>
@@ -214,7 +226,7 @@ export default function OAuthLiveDashboard() {
                 </div>
               </div>
               <div className="ml-2 flex shrink-0 items-center gap-2 font-mono text-xs text-slate-500">
-                <span className={`h-2 w-2 rounded-full ${streamState === "live" ? "animate-pulse bg-emerald-400" : "bg-slate-600"}`} />
+                <span className={`h-2 w-2 rounded-full ${visibleStreamState === "live" ? "animate-pulse bg-emerald-400" : "bg-slate-600"}`} />
                 {latestEvent ? phaseLabels[latestEvent.phase] || latestEvent.phase.toUpperCase() : streamCopy}
               </div>
             </div>

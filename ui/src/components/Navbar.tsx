@@ -4,7 +4,6 @@ import {
   ChevronDown,
   LogOut,
   Menu,
-  ServerCog,
   X,
 } from "lucide-react";
 import { type AuthUser, useUserStore } from "../Zustand/userStore";
@@ -194,12 +193,14 @@ export default function Navbar() {
         <Link
           to="/"
           onClick={() => setMenuOpen(false)}
-          className="flex min-w-0 items-center gap-2"
+          className="flex shrink-0 items-center"
+          aria-label="Reverse HTTP home"
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-cyan-200 bg-cyan-50 text-cyan-700">
-            <ServerCog className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <span className="truncate text-sm font-semibold text-gray-950">Reverse HTTP</span>
+          <img
+            src="/navbar-brand-mark.png"
+            alt="Reverse HTTP"
+            className="h-8 w-auto sm:h-9"
+          />
         </Link>
 
         <div className="hidden flex-1 items-center justify-center gap-1 lg:flex">

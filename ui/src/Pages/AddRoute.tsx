@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiUrl, oauthProviderUrl } from "../Utils/env";
+import { useUserStore } from "../Zustand/userStore";
 
 interface ReverseHttpReq {
   client_secret: string;
@@ -141,6 +142,8 @@ function MetricTile({ label, value, icon }: { label: string; value: string; icon
 
 export default function AddRoute() {
   const queryClient = useQueryClient();
+  const { authStatus, isLoggedIn } = useUserStore();
+  const canAccessData = authStatus === "authenticated" && isLoggedIn;
   const [name, setName] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [clientSecret, setClientSecret] = useState("");
@@ -159,16 +162,17 @@ export default function AddRoute() {
   const configsQuery = useQuery({
     queryKey: ["reverse-http-list"],
     queryFn: fetchReverseConfigs,
+    enabled: canAccessData,
   });
 
   const clientSecretQuery = useQuery({
     queryKey: ["reverse-http-client-secret", editedConfig.id],
     queryFn: () => fetchClientSecretById(editedConfig.id),
-    enabled: isEditing && Boolean(editedConfig.id),
+    enabled: canAccessData && isEditing && Boolean(editedConfig.id),
     staleTime: Infinity,
   });
 
-  const configs = configsQuery.data ?? [];
+  const configs = canAccessData ? configsQuery.data ?? [] : [];
   const endpointCount = configs.filter((item) => item.endpoint).length;
   const secretValue = clientSecretDirty
     ? editedConfig.client_secret
@@ -233,6 +237,10 @@ export default function AddRoute() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canAccessData) {
+      toast.error("Please login to create an OAuth route");
+      return;
+    }
     const trimmedName = name.trim();
     const trimmedEndpoint = endpoint.trim();
     if (!trimmedName || !trimmedEndpoint || !clientSecret.trim()) {
@@ -254,6 +262,10 @@ export default function AddRoute() {
   };
 
   const startEditingConfig = (item: Config) => {
+    if (!canAccessData) {
+      toast.error("Please login to edit OAuth routes");
+      return;
+    }
     const cachedClientSecret = queryClient.getQueryData<{ id: string; client_secret: string }>([
       "reverse-http-client-secret",
       item.id,
@@ -382,14 +394,34 @@ export default function AddRoute() {
                           {copiedKey === `github-${item.id}` ? <CheckCircle2 className="h-4 w-4 text-cyan-600" /> : <Github className="h-4 w-4" />}
                           GitHub
                         </button>
-                        <button type="button" onClick={() => { window.location.href = `/oauth/live?client_id=${encodeURIComponent(item.id)}`; }} className="dev-button h-9 min-h-9 px-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!canAccessData) {
+                              toast.error("Please login to monitor OAuth routes");
+                              return;
+                            }
+                            window.location.href = `/oauth/live?client_id=${encodeURIComponent(item.id)}`;
+                          }}
+                          className="dev-button h-9 min-h-9 px-3"
+                        >
                           <Activity className="h-4 w-4" />
                           Live
                         </button>
                         <button type="button" onClick={() => startEditingConfig(item)} className="dev-button h-9 min-h-9 px-3">
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => deleteConfigMutation.mutate(item.id)} className="dev-button dev-button-danger h-9 min-h-9 px-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!canAccessData) {
+                              toast.error("Please login to delete OAuth routes");
+                              return;
+                            }
+                            deleteConfigMutation.mutate(item.id);
+                          }}
+                          className="dev-button dev-button-danger h-9 min-h-9 px-3"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -465,7 +497,13 @@ export default function AddRoute() {
             <div className="mt-5 flex gap-2 border-t border-gray-200 pt-4">
               <button
                 type="button"
-                onClick={() => updateConfigMutation.mutate({ ...editedConfig, client_secret: secretValue })}
+                onClick={() => {
+                  if (!canAccessData) {
+                    toast.error("Please login to update OAuth routes");
+                    return;
+                  }
+                  updateConfigMutation.mutate({ ...editedConfig, client_secret: secretValue });
+                }}
                 disabled={updateConfigMutation.isPending || clientSecretQuery.isFetching}
                 className="dev-button dev-button-primary flex-1"
               >
