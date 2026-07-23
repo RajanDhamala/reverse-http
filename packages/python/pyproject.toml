@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "reverse-http-oauth"
+version = "0.1.0"
+description = "PKCE-protected, one-time OAuth code exchange for Reverse HTTP"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Reverse HTTP" }]
+dependencies = ["httpx>=0.27,<1"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.optional-dependencies]
+flask = ["flask>=3,<4"]
+fastapi = ["fastapi>=0.115,<1"]
+dev = [
+  "build>=1.2,<2",
+  "fastapi>=0.115,<1",
+  "flask>=3,<4",
+  "pytest>=8,<9",
+  "twine>=6,<7",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/reverse_http_oauth"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
