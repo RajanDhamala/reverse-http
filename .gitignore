@@ -31,3 +31,8 @@ ui/node_modules
 ui/dist
 gomain
 node_modules/
+packages/*/dist/
+packages/python/.pytest_cache/
+**/__pycache__/
+*.py[cod]
+.venv/

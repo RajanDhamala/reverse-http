@@ -164,33 +164,17 @@ func (ctrl *Controller) OauthLogin(oauthData *OAuthUserData, c *fiber.Ctx) (*uti
 	Username := oauthData.FullName
 	Avatar := oauthData.AvatarURL
 
-	if oauthData.Provider == "github" {
-		data, err := ctrl.queries.GetUserByEmail(c.Context(), Email)
-
-		if err != nil {
-			fmt.Println("error fetching user by email:", err)
-		} else {
-			fmt.Println("user fetched by email:", data)
-			return &utils.UserJWT{
-				Id:       data.ID.String(),
-				Username: Username,
-			}, nil
-		}
-	} else if oauthData.Provider == "google" {
-		data, err := ctrl.queries.GetUserByEmail(c.Context(), Email)
-
-		if err != nil {
-			fmt.Println("error fetching user by email:", err)
-		} else {
-			fmt.Println("user fetched by email:", data)
-			return &utils.UserJWT{
-				Id:       data.ID.String(),
-				Username: Username,
-			}, nil
-		}
-	} else {
+	if oauthData.Provider != "github" && oauthData.Provider != "google" {
 		return nil, fmt.Errorf("unsupported oauth provider")
 	}
+	data, err := ctrl.queries.GetUserByEmail(c.Context(), Email)
+	if err == nil {
+		return &utils.UserJWT{
+			Id:       data.ID.String(),
+			Username: Username,
+		}, nil
+	}
+
 	usrid := uuid.New()
 	createdUser, err := ctrl.queries.CreateUser(
 		c.Context(),
@@ -216,20 +200,9 @@ func (ctrl *Controller) OauthLogin(oauthData *OAuthUserData, c *fiber.Ctx) (*uti
 			},
 		},
 	)
-
-	fmt.Println("created user:", createdUser)
-
 	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
-			fmt.Println("user with this email already exists")
-		} else {
-			fmt.Println("database error:", err)
-		}
-	} else {
-		fmt.Println("created user:", createdUser)
+		return nil, fmt.Errorf("failed to create OAuth user")
 	}
-
-	fmt.Println("user id:", createdUser.ID.String())
 
 	return &utils.UserJWT{
 		Id:       createdUser.ID.String(),

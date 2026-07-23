@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Activity,
-  Chrome,
   Copy,
-  Github,
   LoaderCircle,
   Radio,
   Terminal,
@@ -13,10 +11,10 @@ import {
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { apiUrl, oauthProviderUrl } from "../Utils/env";
+import { apiUrl } from "../Utils/env";
 import { useUserStore } from "../Zustand/userStore";
 
-type OAuthProvider = "github" | "google" | "stream";
+type OAuthProvider = "github" | "google" | "exchange" | "stream";
 type StreamState = "connecting" | "live" | "reconnecting" | "closed" | "missing";
 
 interface OAuthStreamEvent {
@@ -34,6 +32,10 @@ const phaseLabels: Record<string, string> = {
   login_hit: "GET",
   redirect_provider: "REDIRECT",
   callback_hit: "CALLBACK",
+  code_issued: "CODE",
+  exchange_success: "EXCHANGE",
+  invalid_grant: "REJECT",
+  redis_failure: "REDIS",
   success: "OK",
   failed: "ERR",
   closed: "CLOSE",
@@ -55,10 +57,6 @@ function formatLogTime(value: string) {
 
 function pushLogRow(current: OAuthStreamEvent[], event: OAuthStreamEvent) {
   return [...current, event].slice(-maxLogRows);
-}
-
-function publicProviderUrl(provider: "github" | "google", routeID: string) {
-  return oauthProviderUrl(provider, routeID);
 }
 
 export default function OAuthLiveDashboard() {
@@ -144,7 +142,7 @@ export default function OAuthLiveDashboard() {
               Live OAuth route console
             </h1>
             <p className="mt-2 text-sm leading-6 text-gray-600">
-              Keep this open while users hit the public provider URLs. The browser keeps only the newest {maxLogRows} rows.
+              Keep this open while users complete provider callbacks and backend exchanges. The browser keeps only the newest {maxLogRows} rows.
             </p>
           </motion.div>
 
@@ -152,23 +150,13 @@ export default function OAuthLiveDashboard() {
             <button
               type="button"
               disabled={!routeID}
-              onClick={() => void copyText(publicProviderUrl("github", routeID), "github")}
+              onClick={() => void copyText(routeID, "client-id")}
               className="dev-button dev-button-primary disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <Github className="h-4 w-4" />
-              {copied === "github" ? "Copied" : "Copy GitHub URL"}
               <Copy className="h-4 w-4" />
+              {copied === "client-id" ? "Copied" : "Copy Client ID"}
             </button>
-            <button
-              type="button"
-              disabled={!routeID}
-              onClick={() => void copyText(publicProviderUrl("google", routeID), "google")}
-              className="dev-button disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Chrome className="h-4 w-4 text-cyan-600" />
-              {copied === "google" ? "Copied" : "Copy Google URL"}
-              <Copy className="h-4 w-4" />
-            </button>
+            <Link to="/docs" className="dev-button">SDK setup</Link>
           </div>
         </section>
 
@@ -234,8 +222,8 @@ export default function OAuthLiveDashboard() {
             <div ref={logRef} className="h-[min(68vh,680px)] overflow-y-auto overflow-x-hidden px-3 py-3 font-mono text-[12px] leading-5 sm:px-4 sm:text-[13px] sm:leading-6">
               {events.map((event, index) => {
                 const method = phaseLabels[event.phase] || event.phase.toUpperCase();
-                const isError = event.phase === "failed";
-                const isSuccess = event.phase === "success";
+                const isError = event.phase === "failed" || event.phase === "invalid_grant" || event.phase === "redis_failure";
+                const isSuccess = event.phase === "success" || event.phase === "code_issued" || event.phase === "exchange_success";
 
                 return (
                   <motion.div

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -23,9 +24,14 @@ type ReverseHttpReq struct {
 }
 
 type UpdateConfigReq struct {
-	Id       uuid.UUID `json:"id"`
-	Key      string    `json:"key"`
-	Endpoint string    `json:"endpoint"`
+	Id           uuid.UUID `json:"id"`
+	Key          string    `json:"key"`
+	Endpoint     string    `json:"endpoint"`
+	ClientSecret string    `json:"client_secret"`
+}
+
+func oauthRouteListCacheKey(userID string) string {
+	return "oauth:routes:v2:user:" + userID
 }
 
 func (ctrl *Controller) CreateReverseRoute(c *fiber.Ctx) error {
@@ -36,6 +42,17 @@ func (ctrl *Controller) CreateReverseRoute(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "failed to pasrse the body",
 		})
+	}
+	data.Name = strings.TrimSpace(data.Name)
+	data.Endpoint = strings.TrimSpace(data.Endpoint)
+	if data.Name == "" || data.Endpoint == "" || data.ClientSecret == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "name, endpoint, and client secret are required"})
+	}
+	if len([]byte(data.ClientSecret)) < 32 {
+		return c.Status(400).JSON(fiber.Map{"error": "code exchange requires a client secret of at least 32 bytes"})
+	}
+	if !validOAuthCallbackURL(data.Endpoint) {
+		return c.Status(400).JSON(fiber.Map{"error": "callback must be an absolute HTTP or HTTPS URL"})
 	}
 
 	paramId := uuid.New()
@@ -75,7 +92,7 @@ func (ctrl *Controller) CreateReverseRoute(c *fiber.Ctx) error {
 		})
 	}
 
-	redisKey := "redirectList:" + userId.String()
+	redisKey := oauthRouteListCacheKey(userId.String())
 	ctrl.redisClient.Del(c.Context(), redisKey)
 
 	return c.Status(200).JSON(fiber.Map{
@@ -104,10 +121,10 @@ func (ctrl *Controller) RedirectRequest(c *fiber.Ctx) error {
 }
 
 type UserRedirectList struct {
-	ID        string `json:"id"`
-	Key       string `json:"key"`
-	Endpoint  string `json:"endpoint"`
-	CreatedAt time.Time
+	ID        string    `json:"id"`
+	Key       string    `json:"key"`
+	Endpoint  string    `json:"endpoint"`
+	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -119,7 +136,7 @@ func (ctrl *Controller) GetRedirectList(c *fiber.Ctx) error {
 	}
 
 	var realResult []UserRedirectList
-	redisKey := "redirectList:" + userId.String()
+	redisKey := oauthRouteListCacheKey(userId.String())
 	response, errs := ctrl.redisClient.Get(c.Context(), redisKey).Result()
 
 	if errs == redis.Nil {
@@ -142,7 +159,7 @@ func (ctrl *Controller) GetRedirectList(c *fiber.Ctx) error {
 		marshalled, _ := json.Marshal(res)
 		ctrl.redisClient.Set(context.Background(), redisKey, marshalled, 10*time.Minute)
 		realResult = res
-	} else if err != nil {
+	} else if errs != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"err": "internal redis server err",
 		})
@@ -174,20 +191,40 @@ func (ctrl *Controller) UpdateConfig(c *fiber.Ctx) error {
 	}
 
 	cfgId := pgtype.UUID{Bytes: req.Id, Valid: true}
+	current, err := ctrl.queries.GetOauthConfigData(c.Context(), cfgId)
+	if err != nil || current.UserID != userId {
+		return c.Status(404).JSON(fiber.Map{"error": "OAuth route not found"})
+	}
+	if strings.TrimSpace(req.Key) == "" {
+		req.Key = current.Key
+	}
+	if strings.TrimSpace(req.Endpoint) == "" {
+		req.Endpoint = current.Endpoint
+	}
+	if req.ClientSecret == "" {
+		req.ClientSecret = current.ClientSecret
+	}
+	if len([]byte(req.ClientSecret)) < 32 {
+		return c.Status(400).JSON(fiber.Map{"error": "code exchange requires a client secret of at least 32 bytes"})
+	}
+	if !validOAuthCallbackURL(req.Endpoint) {
+		return c.Status(400).JSON(fiber.Map{"error": "callback must be an absolute HTTP or HTTPS URL"})
+	}
 
 	_, err = ctrl.queries.UpdateOauthConfig(c.Context(), db.UpdateOauthConfigParams{
-		ID:       cfgId,
-		UserID:   userId,
-		Endpoint: req.Endpoint,
-		Key:      req.Key,
+		ID:           cfgId,
+		UserID:       userId,
+		Endpoint:     strings.TrimSpace(req.Endpoint),
+		Key:          strings.TrimSpace(req.Key),
+		ClientSecret: req.ClientSecret,
 	})
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "failed to update config"})
 	}
 
-	redisKey := "redirectList:" + userId.String()
+	redisKey := oauthRouteListCacheKey(userId.String())
 
-	oauthkey := "oauthThing:" + cfgId.String()
+	oauthkey := oauthRouteCacheKey(cfgId.String())
 	ctrl.redisClient.Del(c.Context(), redisKey, oauthkey)
 
 	return c.Status(200).JSON(fiber.Map{"message": "successfully updated the config"})
@@ -249,8 +286,9 @@ func (ctrl *Controller) DeleteOauthConfig(c *fiber.Ctx) error {
 			"message": "failed to delete oauth config",
 		})
 	}
-	redisKey := "redirectList:" + usrData.Id
-	ctrl.redisClient.Del(c.Context(), redisKey)
+	redisKey := oauthRouteListCacheKey(usrData.Id)
+	oauthKey := oauthRouteCacheKey(configID.String())
+	ctrl.redisClient.Del(c.Context(), redisKey, oauthKey)
 
 	return c.Status(200).JSON(fiber.Map{
 		"message": "successfully deleted oauth config",

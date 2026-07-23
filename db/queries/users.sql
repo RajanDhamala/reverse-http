@@ -59,10 +59,10 @@ RETURNING *;
 DELETE FROM app_configs WHERE id=$1 AND user_id=$2;
 
 -- name: CreteOauthConfig :one
-INSERT INTO oauth_configs (id,key,endpoint,user_id,client_secret ) VALUES($1,$2,$3,$4,$5) RETURNING *;
+INSERT INTO oauth_configs (id,key,endpoint,user_id,client_secret) VALUES($1,$2,$3,$4,$5) RETURNING *;
 
 -- name: GetOauthConfigData :one
-SELECT * from oauth_configs WHERE id=$1 ;
+SELECT id,key,client_secret,endpoint,user_id,created_at,updated_at from oauth_configs WHERE id=$1 ;
 
 -- name: GetOauthClientSecret :one
 SELECT client_secret ,id from oauth_configs where id=$1 AND user_id=$2;
@@ -75,12 +75,12 @@ SELECT id from oauth_configs WHERE key=$1 and user_id=$2;
 
 -- name: UpdateOauthConfig :one
 UPDATE oauth_configs SET 
-    endpoint = COALESCE($3, endpoint),
-    key = COALESCE($4, key)
+    endpoint = $3,
+    key = $4,
+    client_secret = $5
 WHERE id=$1 AND user_id=$2 
 RETURNING *;
 
 
 -- name: DeleteOauthConfig :exec
 DELETE FROM oauth_configs WHERE id=$1 AND user_id=$2;
-

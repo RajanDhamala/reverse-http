@@ -4,11 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   CheckCircle2,
-  Chrome,
   Copy,
   Eye,
   EyeOff,
-  Github,
   Globe2,
   KeyRound,
   Loader2,
@@ -22,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { apiUrl, oauthProviderUrl } from "../Utils/env";
+import { apiUrl } from "../Utils/env";
 import { useUserStore } from "../Zustand/userStore";
 
 interface ReverseHttpReq {
@@ -247,6 +245,10 @@ export default function AddRoute() {
       toast.error("Route name, endpoint, and client secret are required");
       return;
     }
+    if (new TextEncoder().encode(clientSecret.trim()).length < 32) {
+      toast.error("Code exchange requires a client secret of at least 32 bytes");
+      return;
+    }
     createRouteMutation.mutate({
       name: trimmedName,
       endpoint: trimmedEndpoint,
@@ -281,9 +283,6 @@ export default function AddRoute() {
     setIsEditing(true);
   };
 
-  const googleUrl = (id: string) => oauthProviderUrl("google", id);
-  const githubUrl = (id: string) => oauthProviderUrl("github", id);
-
   return (
     <main className="app-page grid-canvas px-4 py-6 md:px-8">
       <div className="mx-auto max-w-7xl">
@@ -292,7 +291,7 @@ export default function AddRoute() {
             <span className="status-pill">OAuth Reverse HTTP</span>
             <h1 className="mt-4 text-3xl font-semibold text-gray-950 md:text-4xl">OAuth Routes</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-              Register private callback endpoints and copy provider start URLs for Google or GitHub.
+              Register backend callback endpoints for one-time Google or GitHub OAuth code exchange.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 md:min-w-[300px]">
@@ -309,7 +308,7 @@ export default function AddRoute() {
               </div>
               <div>
                 <h2 className="text-base font-semibold text-gray-950">Route setup</h2>
-                <p className="mt-1 text-xs text-gray-500">Point public OAuth handoffs at your private callback.</p>
+                <p className="mt-1 text-xs text-gray-500">Point OAuth handoffs at your registered HTTP or HTTPS callback.</p>
               </div>
             </div>
 
@@ -319,8 +318,8 @@ export default function AddRoute() {
                 <input value={name} onChange={(event) => setName(event.target.value)} className="dev-input" placeholder="my-oauth-service" />
               </div>
               <div>
-                <label className="dev-label">Private endpoint</label>
-                <input value={endpoint} onChange={(event) => setEndpoint(event.target.value)} className="dev-input font-mono text-xs" placeholder="http://192.168.x.x:3030/oauth/google" />
+                <label className="dev-label">Backend callback</label>
+                <input value={endpoint} onChange={(event) => setEndpoint(event.target.value)} className="dev-input font-mono text-xs" placeholder="http://api.example.com/oauth/callback" />
               </div>
               <div>
                 <label className="dev-label">Client secret</label>
@@ -330,7 +329,7 @@ export default function AddRoute() {
                     value={clientSecret}
                     onChange={(event) => setClientSecret(event.target.value)}
                     className="dev-input pr-10 font-mono text-xs"
-                    placeholder="shared signing secret"
+                    placeholder="at least 32 random characters"
                   />
                   <button
                     type="button"
@@ -346,7 +345,7 @@ export default function AddRoute() {
                 <ShieldCheck className="mb-3 h-5 w-5 text-cyan-700" />
                 <p className="text-sm font-semibold text-gray-950">OAuth ready</p>
                 <p className="mt-1 text-xs leading-5 text-gray-600">
-                  The saved id becomes the `client_id` query value for provider login.
+                  Your backend SDK uses the saved id as client_id and exchanges each code once.
                 </p>
               </div>
               <button type="submit" disabled={createRouteMutation.isPending} className="dev-button dev-button-primary w-full">
@@ -383,16 +382,13 @@ export default function AddRoute() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-gray-950">{label}</p>
                         <p className="mt-1 font-mono text-xs text-gray-400">{shortId(item.id)}</p>
+                        <span className="mono-chip mt-2">one-time code</span>
                       </div>
                       <p className="min-w-0 truncate font-mono text-xs text-gray-600">{item.endpoint || "No endpoint"}</p>
                       <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={() => void copyText(googleUrl(item.id), `google-${item.id}`)} className="dev-button h-9 min-h-9 px-3">
-                          {copiedKey === `google-${item.id}` ? <CheckCircle2 className="h-4 w-4 text-cyan-600" /> : <Chrome className="h-4 w-4" />}
-                          Google
-                        </button>
-                        <button type="button" onClick={() => void copyText(githubUrl(item.id), `github-${item.id}`)} className="dev-button h-9 min-h-9 px-3">
-                          {copiedKey === `github-${item.id}` ? <CheckCircle2 className="h-4 w-4 text-cyan-600" /> : <Github className="h-4 w-4" />}
-                          GitHub
+                        <button type="button" onClick={() => void copyText(item.id, `client-${item.id}`)} className="dev-button h-9 min-h-9 px-3">
+                          {copiedKey === `client-${item.id}` ? <CheckCircle2 className="h-4 w-4 text-cyan-600" /> : <Copy className="h-4 w-4" />}
+                          Client ID
                         </button>
                         <button
                           type="button"
@@ -502,6 +498,10 @@ export default function AddRoute() {
                     toast.error("Please login to update OAuth routes");
                     return;
                   }
+                  if (new TextEncoder().encode(secretValue).length < 32) {
+                    toast.error("Code exchange requires a client secret of at least 32 bytes");
+                    return;
+                  }
                   updateConfigMutation.mutate({ ...editedConfig, client_secret: secretValue });
                 }}
                 disabled={updateConfigMutation.isPending || clientSecretQuery.isFetching}
@@ -510,7 +510,7 @@ export default function AddRoute() {
                 {updateConfigMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
                 Save changes
               </button>
-              <button type="button" onClick={() => void copyText(googleUrl(editedConfig.id), `modal-${editedConfig.id}`)} className="dev-button px-3">
+              <button type="button" onClick={() => void copyText(editedConfig.id, `modal-${editedConfig.id}`)} className="dev-button px-3">
                 {copiedKey === `modal-${editedConfig.id}` ? <CheckCircle2 className="h-4 w-4 text-cyan-600" /> : <Copy className="h-4 w-4" />}
               </button>
             </div>

@@ -9,25 +9,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Hardcoded for dev/testing
-var (
-	RefreshSecret = []byte("refresh-key")
-	AccessSecret  = []byte("access-key")
-	OauthSecret   = []byte("oauth-key")
-)
-
 type UserJWT struct {
 	Username string
 	Id       string
-}
-
-type OauthJwt struct {
-	ProviderId   string
-	Username     string
-	Email        string
-	ProviderName string
-	Avatar       string
-	UUID         string
 }
 
 func CreateAccessToken(data *UserJWT) (string, error) {
@@ -39,23 +23,7 @@ func CreateAccessToken(data *UserJWT) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(AccessSecret)
-}
-
-func CreateOauthToken(data OauthJwt, secret string) (string, error) {
-	claims := jwt.MapClaims{
-		"provider_id":   data.ProviderId,
-		"username":      data.Username,
-		"email":         data.Email,
-		"provider_name": data.ProviderName,
-		"avatar":        data.Avatar,
-		"exp":           time.Now().Add(15 * time.Minute).Unix(),
-		"iat":           time.Now().Unix(),
-		"uuid":          data.UUID,
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secret))
+	return token.SignedString(accessTokenSecret())
 }
 
 func CreateRefreshToken(data *UserJWT) (string, error) {
@@ -67,7 +35,7 @@ func CreateRefreshToken(data *UserJWT) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(RefreshSecret)
+	return token.SignedString(refreshTokenSecret())
 }
 
 func VerifyAccessToken(tokenString string) (*UserJWT, error) {
@@ -75,7 +43,7 @@ func VerifyAccessToken(tokenString string) (*UserJWT, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
-		return AccessSecret, nil
+		return accessTokenSecret(), nil
 	})
 	if err != nil || !token.Valid {
 		return nil, fmt.Errorf("invalid access token")
@@ -99,7 +67,7 @@ func VerifyRefreshToken(tokenString string) (*UserJWT, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
-		return RefreshSecret, nil
+		return refreshTokenSecret(), nil
 	})
 	if err != nil || !token.Valid {
 		return nil, fmt.Errorf("invalid refresh token")

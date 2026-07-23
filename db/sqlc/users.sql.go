@@ -115,7 +115,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const creteOauthConfig = `-- name: CreteOauthConfig :one
-INSERT INTO oauth_configs (id,key,endpoint,user_id,client_secret ) VALUES($1,$2,$3,$4,$5) RETURNING id, key, client_secret, endpoint, user_id, created_at, updated_at
+INSERT INTO oauth_configs (id,key,endpoint,user_id,client_secret) VALUES($1,$2,$3,$4,$5) RETURNING id, key, client_secret, endpoint, user_id, created_at, updated_at
 `
 
 type CreteOauthConfigParams struct {
@@ -254,7 +254,7 @@ func (q *Queries) GetOauthClientSecret(ctx context.Context, arg GetOauthClientSe
 }
 
 const getOauthConfigData = `-- name: GetOauthConfigData :one
-SELECT id, key, client_secret, endpoint, user_id, created_at, updated_at from oauth_configs WHERE id=$1
+SELECT id,key,client_secret,endpoint,user_id,created_at,updated_at from oauth_configs WHERE id=$1
 `
 
 func (q *Queries) GetOauthConfigData(ctx context.Context, id pgtype.UUID) (OauthConfig, error) {
@@ -529,17 +529,19 @@ func (q *Queries) UpdateAppConfig(ctx context.Context, arg UpdateAppConfigParams
 
 const updateOauthConfig = `-- name: UpdateOauthConfig :one
 UPDATE oauth_configs SET 
-    endpoint = COALESCE($3, endpoint),
-    key = COALESCE($4, key)
+    endpoint = $3,
+    key = $4,
+    client_secret = $5
 WHERE id=$1 AND user_id=$2 
 RETURNING id, key, client_secret, endpoint, user_id, created_at, updated_at
 `
 
 type UpdateOauthConfigParams struct {
-	ID       pgtype.UUID `json:"id"`
-	UserID   pgtype.UUID `json:"user_id"`
-	Endpoint string      `json:"endpoint"`
-	Key      string      `json:"key"`
+	ID           pgtype.UUID `json:"id"`
+	UserID       pgtype.UUID `json:"user_id"`
+	Endpoint     string      `json:"endpoint"`
+	Key          string      `json:"key"`
+	ClientSecret string      `json:"client_secret"`
 }
 
 func (q *Queries) UpdateOauthConfig(ctx context.Context, arg UpdateOauthConfigParams) (OauthConfig, error) {
@@ -548,6 +550,7 @@ func (q *Queries) UpdateOauthConfig(ctx context.Context, arg UpdateOauthConfigPa
 		arg.UserID,
 		arg.Endpoint,
 		arg.Key,
+		arg.ClientSecret,
 	)
 	var i OauthConfig
 	err := row.Scan(

@@ -1,10 +1,8 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
-	"time"
 
 	redis "github.com/redis/go-redis/v9"
 	database "reverse-http/Configs"
@@ -23,6 +21,9 @@ func main() {
 	err := godotenv.Load("./.env")
 	if err != nil {
 		log.Println("No .env file loaded; using process environment")
+	}
+	if err := utils.ValidateProductionOAuthEnvironment(); err != nil {
+		log.Fatal(err)
 	}
 
 	host := os.Getenv("HOST")
@@ -77,29 +78,6 @@ func main() {
 	route.OauthRouter(app, ctrl)
 	route.AppConfigRouter(app, ctrl)
 	route.ReverseHttpRouter(app, ctrl)
-
-	ctx := context.Background()
-
-	app.Get("/set", func(c *fiber.Ctx) error {
-		redisClient.Set(ctx, "foo", "bar", 30*time.Second)
-		return c.Status(200).JSON(fiber.Map{
-			"message": "Value set in Redis",
-			"value":   "bar",
-		})
-	})
-
-	app.Get("/get", func(c *fiber.Ctx) error {
-		val, err := redisClient.Get(ctx, "foo").Result()
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{
-				"error": "Failed to get value from Redis",
-			})
-		}
-		return c.Status(200).JSON(fiber.Map{
-			"message": "Value retrieved from Redis",
-			"value":   val,
-		})
-	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello, Reverse Http is Ready 2 Serve!")

@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -11,10 +10,8 @@ import (
 func AuthMe(c *fiber.Ctx) error {
 	accessToken := c.Cookies("accessToken")
 	if accessToken != "" {
-		fmt.Println("Found access token:", accessToken)
 		data, err := utils.VerifyAccessToken(accessToken)
 		if err == nil {
-			fmt.Println("Access token valid for user:", data)
 			return c.Status(200).JSON(fiber.Map{
 				"message": "Access token valid",
 				"user":    data,

@@ -164,7 +164,7 @@ export default function RegisterPage() {
               <div className="space-y-3 text-sm text-gray-700">
                 <p>Config endpoints for app startup.</p>
                 <p>OAuth reverse routes for private IP callbacks.</p>
-                <p>Client secrets for signed handoff tokens.</p>
+                <p>Client secrets for authenticated one-time exchanges.</p>
               </div>
             </div>
           </section>

@@ -20,80 +20,92 @@ import {
 type Language = "javascript" | "python" | "go";
 
 const languageLabels: Record<Language, string> = {
-  javascript: "JavaScript / Express",
-  python: "Python / Flask",
-  go: "Go / Gin",
+  javascript: "@reverse-http/express",
+  python: "reverse-http-oauth / Flask",
+  go: "Go / manual exchange",
 };
 
 const codeExamples: Record<Language, string> = {
   javascript: `import express from "express";
-import jwt from "jsonwebtoken";
+import { createReverseHttpOAuth } from "@reverse-http/express";
 
 const app = express();
-const CLIENT_SECRET = process.env.REVERSE_HTTP_SECRET;
+const oauth = createReverseHttpOAuth({
+  providerUrl: process.env.REVERSE_HTTP_PROVIDER_URL,
+  clientId: process.env.REVERSE_HTTP_CLIENT_ID,
+  clientSecret: process.env.REVERSE_HTTP_CLIENT_SECRET,
+  callbackUrl: "https://api.example.com/oauth/callback",
+  stateCookieSecret: process.env.OAUTH_STATE_COOKIE_SECRET,
+});
 
-app.get("/oauth/google", (req, res) => {
-  try {
-    const token = String(req.query.token || "");
-    const user = jwt.verify(token, CLIENT_SECRET);
-    res.json({ message: "OAuth complete", user });
-  } catch {
-    res.status(400).json({ message: "Invalid OAuth payload" });
-  }
-});`,
-  python: `from flask import Flask, request, jsonify
-import jwt
-import os
+app.get("/oauth/start/:provider", oauth.start());
+app.get("/oauth/callback", oauth.callback({
+  onAuthenticated: async ({ identity, res }) => {
+    // Create your own user and session here.
+    res.redirect("https://app.example.com");
+  },
+}));`,
+  python: `import os
+from flask import Flask, redirect
+from reverse_http_oauth import ReverseHttpOAuth
+from reverse_http_oauth.flask import FlaskReverseHttpOAuth
 
 app = Flask(__name__)
-CLIENT_SECRET = os.environ["REVERSE_HTTP_SECRET"]
+oauth = FlaskReverseHttpOAuth(ReverseHttpOAuth(
+    provider_url=os.environ["REVERSE_HTTP_PROVIDER_URL"],
+    client_id=os.environ["REVERSE_HTTP_CLIENT_ID"],
+    client_secret=os.environ["REVERSE_HTTP_CLIENT_SECRET"],
+    callback_url="https://api.example.com/oauth/callback",
+    state_cookie_secret=os.environ["OAUTH_STATE_COOKIE_SECRET"],
+))
 
-@app.get("/oauth/google")
-def oauth_google():
-    token = request.args.get("token", "")
-    user = jwt.decode(token, CLIENT_SECRET, algorithms=["HS256"])
-    return jsonify({"message": "OAuth complete", "user": user})`,
+@app.get("/oauth/start/<provider>")
+def oauth_start(provider):
+    return oauth.start(provider)
+
+@app.get("/oauth/callback")
+def oauth_callback():
+    return oauth.callback(
+        lambda identity, request: redirect("https://app.example.com")
+    )`,
   go: `package main
 
 import (
+  "bytes"
+  "encoding/base64"
+  "encoding/json"
   "net/http"
   "os"
-
-  "github.com/gin-gonic/gin"
-  "github.com/golang-jwt/jwt/v5"
 )
 
-func main() {
-  r := gin.Default()
-  secret := []byte(os.Getenv("REVERSE_HTTP_SECRET"))
-
-  r.GET("/oauth/google", func(c *gin.Context) {
-    token, err := jwt.Parse(c.Query("token"), func(t *jwt.Token) (interface{}, error) {
-      return secret, nil
-    })
-    if err != nil || !token.Valid {
-      c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid OAuth payload"})
-      return
-    }
-    c.JSON(http.StatusOK, gin.H{"user": token.Claims})
+func exchange(code, verifier string) (*http.Response, error) {
+  body, _ := json.Marshal(map[string]string{
+    "code": code,
+    "code_verifier": verifier,
+    "redirect_uri": "https://api.example.com/oauth/callback",
   })
+  req, _ := http.NewRequest("POST", os.Getenv("REVERSE_HTTP_PROVIDER_URL")+"/oauth/exchange", bytes.NewReader(body))
+  credentials := base64.StdEncoding.EncodeToString([]byte(os.Getenv("REVERSE_HTTP_CLIENT_ID")+":"+os.Getenv("REVERSE_HTTP_CLIENT_SECRET")))
+  req.Header.Set("Authorization", "Basic "+credentials)
+  req.Header.Set("Content-Type", "application/json")
+  return http.DefaultClient.Do(req)
 }`,
 };
 
 const flowSteps = [
-  { icon: <Network className="h-4 w-4" />, title: "Start OAuth", text: "Send users to /oauth/github or /oauth/google with the route id." },
+  { icon: <Network className="h-4 w-4" />, title: "Backend start", text: "Your backend creates state and PKCE, then redirects to Reverse HTTP." },
   { icon: <ShieldCheck className="h-4 w-4" />, title: "Provider callback", text: "Reverse HTTP handles provider code exchange and userinfo." },
-  { icon: <KeyRound className="h-4 w-4" />, title: "Sign payload", text: "OAuth profile fields are signed with your route client secret." },
-  { icon: <Route className="h-4 w-4" />, title: "Redirect private", text: "Your private callback receives the signed token query parameter." },
+  { icon: <KeyRound className="h-4 w-4" />, title: "One-time code", text: "A short-lived opaque code is bound to your route and PKCE challenge." },
+  { icon: <Route className="h-4 w-4" />, title: "Backend exchange", text: "Your callback exchanges the code once, then creates its own session." },
 ];
 
 const payloadFields = [
   "provider_name",
   "provider_id",
   "email",
+  "email_verified",
   "username",
   "avatar",
-  "exp",
 ];
 
 function highlightCode(code: string) {
@@ -159,9 +171,9 @@ function LanguageCodePanel() {
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-gray-950">
             <Code2 className="h-4 w-4 text-cyan-600" />
-            Verify callback token
+            Handle the backend callback
           </div>
-          <p className="mt-1 text-xs text-gray-500">Choose your backend and copy the handler.</p>
+          <p className="mt-1 text-xs text-gray-500">Choose an SDK or use the HTTP exchange contract directly.</p>
         </div>
         <div className="relative w-full sm:w-60">
           <select
@@ -188,16 +200,16 @@ export default function DocumentationPage() {
       <section className="px-4 py-10 md:px-8 md:py-14">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
-            <span className="status-pill">Local OAuth</span>
+            <span className="status-pill">One-time OAuth</span>
             <h1 className="mt-5 max-w-4xl text-4xl font-semibold leading-tight text-gray-950 md:text-5xl">
-              OAuth redirects for private IP backends.
+              OAuth identity without reusable browser tokens.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-gray-600">
-              Reverse HTTP verifies provider login, signs the user payload, then
-              redirects the browser to the callback URL you registered.
+              Reverse HTTP verifies provider login, redirects with a short-lived
+              code, and returns identity only to your authenticated backend.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              {["Private callback", "Signed payload", "Your auth logic"].map((item) => (
+              {["Backend callback", "Single use", "Your auth logic"].map((item) => (
                 <div key={item} className="chrome-card rounded-lg px-3 py-2 text-xs font-medium text-gray-700">
                   <CheckCircle2 className="mr-2 inline h-3.5 w-3.5 text-cyan-500" />
                   {item}
@@ -214,10 +226,13 @@ export default function DocumentationPage() {
               </div>
               <span className="mono-chip">browser</span>
             </div>
-            <CodeBlock code={`GET /oauth/google?client_id=<route_id>
-GET /oauth/github?client_id=<route_id>
+            <CodeBlock code={`GET /oauth/google?client_id=<route_id>&state=<state>
+  &code_challenge=<s256_challenge>&code_challenge_method=S256
 
-302 http://192.168.1.44:3030/oauth/google?token=<signed_jwt>`} />
+303 https://api.example.com/oauth/callback?code=<opaque_code>&state=<state>
+
+POST /oauth/exchange
+Authorization: Basic <client_id:client_secret>`} />
           </div>
         </div>
       </section>
@@ -227,7 +242,7 @@ GET /oauth/github?client_id=<route_id>
           <div className="mb-6 max-w-3xl">
             <span className="status-pill">Flow</span>
             <h2 className="mt-4 text-3xl font-semibold text-gray-950">
-              One public callback, one private backend callback.
+              One public provider, one application-owned session.
             </h2>
           </div>
           <div className="chrome-card-strong grid gap-3 rounded-xl p-4 lg:grid-cols-4">
@@ -255,17 +270,17 @@ GET /oauth/github?client_id=<route_id>
           <div>
             <span className="status-pill">Payload</span>
             <h2 className="mt-4 text-3xl font-semibold text-gray-950">
-              What your backend receives.
+              The verified identity contract.
             </h2>
             <p className="mt-3 text-sm leading-6 text-gray-600">
-              After verification, use these signed fields to build your own session.
+              The exchange response uses stable provider identity fields; your application owns its session.
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="chrome-card-strong rounded-xl p-5">
               <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-950">
                 <LockKeyhole className="h-4 w-4 text-cyan-600" />
-                Signed fields
+                Identity fields
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {payloadFields.map((field) => (
@@ -285,8 +300,9 @@ GET /oauth/github?client_id=<route_id>
   "provider_name": "github",
   "provider_id": "14328412",
   "email": "dev@example.com",
+  "email_verified": true,
   "username": "Local Dev",
-  "exp": 1735689600
+  "avatar": null
 }`} />
             </div>
           </div>
@@ -298,7 +314,7 @@ GET /oauth/github?client_id=<route_id>
           <div className="mb-6 max-w-3xl">
             <span className="status-pill">Examples</span>
             <h2 className="mt-4 text-3xl font-semibold text-gray-950">
-              Verify the callback in your backend.
+              Exchange the callback in your backend.
             </h2>
           </div>
           <LanguageCodePanel />

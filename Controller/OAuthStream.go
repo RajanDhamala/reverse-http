@@ -52,7 +52,7 @@ func validOAuthFlowID(flowID string) bool {
 }
 
 func validOAuthProvider(provider string) bool {
-	return provider == "github" || provider == "google"
+	return provider == "github" || provider == "google" || provider == "exchange"
 }
 
 func (h *OAuthStreamHub) Add(flowID string) (*oauthStreamClient, bool) {

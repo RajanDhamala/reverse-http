@@ -23,15 +23,15 @@ import { frontendAddress } from "../Utils/env";
 
 const releaseNotes = [
   "Stream OAuth route traffic through /oauth/live?client_id=:route.",
-  "Watch provider redirects, callbacks, and signed handoffs as they happen.",
+  "Watch provider redirects, one-time codes, and exchanges as they happen.",
   "Keep the latest 200 route events in a browser-native terminal view.",
 ];
 
 const liveTrafficRows = [
   { time: "14:22:01.118", provider: "github", method: "GET", endpoint: "/oauth/github?client_id=rh_live", tone: "text-cyan-300" },
-  { time: "14:22:01.241", provider: "github", method: "302", endpoint: "redirect_provider github.com/login/oauth", tone: "text-amber-300" },
+  { time: "14:22:01.241", provider: "github", method: "303", endpoint: "redirect_provider github.com/login/oauth", tone: "text-amber-300" },
   { time: "14:22:04.903", provider: "github", method: "CALLBACK", endpoint: "/oauth/callback/github", tone: "text-sky-300" },
-  { time: "14:22:04.947", provider: "route", method: "OK", endpoint: "signed handoff to localhost:4000/callback", tone: "text-emerald-300" },
+  { time: "14:22:04.947", provider: "route", method: "CODE", endpoint: "one-time handoff to localhost:4000/callback", tone: "text-emerald-300" },
   { time: "14:22:06.332", provider: "google", method: "GET", endpoint: "/oauth/google?client_id=rh_live", tone: "text-cyan-300" },
   { time: "14:22:06.419", provider: "stream", method: "EVENT", endpoint: "pushed to live dashboard listener", tone: "text-fuchsia-300" },
 ];
@@ -50,13 +50,13 @@ const features = [
   },
   {
     icon: <Route className="h-4 w-4" aria-hidden="true" />,
-    title: "Private callback routing",
-    text: "OAuth providers hit the public service, then your local backend receives the signed handoff.",
+    title: "Callback routing",
+    text: "OAuth providers hit the public service, then your local backend receives a short-lived code.",
   },
   {
     icon: <LockKeyhole className="h-4 w-4" aria-hidden="true" />,
     title: "Route-owned secrets",
-    text: "Each callback route signs its payload with the secret your backend already knows.",
+    text: "Each callback route authenticates its backend and consumes every authorization code once.",
   },
 ];
 
@@ -359,7 +359,7 @@ function ReadmeBlock() {
               <p><span className="text-cyan-300">GET</span> /app/config/:id</p>
               <p><span className="text-cyan-300">GET</span> /oauth/github?client_id=:route</p>
               <p><span className="text-cyan-300">SSE</span> /oauth/listen/:route</p>
-              <p><span className="text-cyan-300">302</span> http://192.168.x.x/callback?token=jwt</p>
+              <p><span className="text-cyan-300">303</span> http://192.168.x.x/callback?code=one_time</p>
               <div className="mt-5 rounded-lg border border-gray-800 bg-black/30 p-4 text-xs">
                 npm run dev
               </div>
