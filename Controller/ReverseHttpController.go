@@ -18,16 +18,14 @@ import (
 )
 
 type ReverseHttpReq struct {
-	Name         string `json:"name"`
-	Endpoint     string `json:"endpoint"`
-	ClientSecret string `json:"client_secret"`
+	Name     string `json:"name"`
+	Endpoint string `json:"endpoint"`
 }
 
 type UpdateConfigReq struct {
-	Id           uuid.UUID `json:"id"`
-	Key          string    `json:"key"`
-	Endpoint     string    `json:"endpoint"`
-	ClientSecret string    `json:"client_secret"`
+	Id       uuid.UUID `json:"id"`
+	Key      string    `json:"key"`
+	Endpoint string    `json:"endpoint"`
 }
 
 func oauthRouteListCacheKey(userID string) string {
@@ -39,17 +37,14 @@ func (ctrl *Controller) CreateReverseRoute(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&data); err != nil {
 		fmt.Println("error while parsing body")
-		return c.Status(500).JSON(fiber.Map{
-			"error": "failed to pasrse the body",
+		return c.Status(400).JSON(fiber.Map{
+			"error": "failed to parse the body",
 		})
 	}
 	data.Name = strings.TrimSpace(data.Name)
 	data.Endpoint = strings.TrimSpace(data.Endpoint)
-	if data.Name == "" || data.Endpoint == "" || data.ClientSecret == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "name, endpoint, and client secret are required"})
-	}
-	if len([]byte(data.ClientSecret)) < 32 {
-		return c.Status(400).JSON(fiber.Map{"error": "code exchange requires a client secret of at least 32 bytes"})
+	if data.Name == "" || data.Endpoint == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "name and endpoint are required"})
 	}
 	if !validOAuthCallbackURL(data.Endpoint) {
 		return c.Status(400).JSON(fiber.Map{"error": "callback must be an absolute HTTP or HTTPS URL"})
@@ -74,6 +69,13 @@ func (ctrl *Controller) CreateReverseRoute(c *fiber.Ctx) error {
 		})
 	}
 
+	clientSecret, err := utils.NewRandomURLSafe(32)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "failed to create secure route credentials",
+		})
+	}
+
 	payload, err := ctrl.queries.CreteOauthConfig(c.Context(), db.CreteOauthConfigParams{
 		ID: pgtype.UUID{
 			Bytes: paramId,
@@ -82,13 +84,12 @@ func (ctrl *Controller) CreateReverseRoute(c *fiber.Ctx) error {
 		Key:          data.Name,
 		Endpoint:     data.Endpoint,
 		UserID:       userId,
-		ClientSecret: data.ClientSecret,
+		ClientSecret: clientSecret,
 	})
 	if err != nil {
 		fmt.Println("error while calling db", err)
 		return c.Status(500).JSON(fiber.Map{
 			"error": "failed to create the endpoint",
-			"err":   err,
 		})
 	}
 
@@ -201,12 +202,6 @@ func (ctrl *Controller) UpdateConfig(c *fiber.Ctx) error {
 	if strings.TrimSpace(req.Endpoint) == "" {
 		req.Endpoint = current.Endpoint
 	}
-	if req.ClientSecret == "" {
-		req.ClientSecret = current.ClientSecret
-	}
-	if len([]byte(req.ClientSecret)) < 32 {
-		return c.Status(400).JSON(fiber.Map{"error": "code exchange requires a client secret of at least 32 bytes"})
-	}
 	if !validOAuthCallbackURL(req.Endpoint) {
 		return c.Status(400).JSON(fiber.Map{"error": "callback must be an absolute HTTP or HTTPS URL"})
 	}
@@ -216,7 +211,7 @@ func (ctrl *Controller) UpdateConfig(c *fiber.Ctx) error {
 		UserID:       userId,
 		Endpoint:     strings.TrimSpace(req.Endpoint),
 		Key:          strings.TrimSpace(req.Key),
-		ClientSecret: req.ClientSecret,
+		ClientSecret: current.ClientSecret,
 	})
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "failed to update config"})
@@ -260,6 +255,54 @@ func (ctrl *Controller) GetConfigSecret(c *fiber.Ctx) error {
 	return c.Status(200).JSON(fiber.Map{
 		"message": "get config secret hit",
 		"data":    data,
+	})
+}
+
+func (ctrl *Controller) RotateConfigSecret(c *fiber.Ctx) error {
+	configID, err := utils.StrToPgUUID(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
+	}
+
+	usrData := c.Locals("user").(*utils.UserJWT)
+	userID, err := utils.StrToPgUUID(usrData.Id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	current, err := ctrl.queries.GetOauthConfigData(c.Context(), configID)
+	if err != nil || current.UserID != userID {
+		return c.Status(404).JSON(fiber.Map{"error": "OAuth route not found"})
+	}
+
+	clientSecret, err := utils.NewRandomURLSafe(32)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to generate a new client secret"})
+	}
+
+	_, err = ctrl.queries.UpdateOauthConfig(c.Context(), db.UpdateOauthConfigParams{
+		ID:           configID,
+		UserID:       userID,
+		Endpoint:     current.Endpoint,
+		Key:          current.Key,
+		ClientSecret: clientSecret,
+	})
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to rotate the client secret"})
+	}
+
+	ctrl.redisClient.Del(
+		c.Context(),
+		oauthRouteListCacheKey(userID.String()),
+		oauthRouteCacheKey(configID.String()),
+	)
+
+	return c.Status(200).JSON(fiber.Map{
+		"message": "client secret rotated successfully",
+		"data": fiber.Map{
+			"id":            configID.String(),
+			"client_secret": clientSecret,
+		},
 	})
 }
 

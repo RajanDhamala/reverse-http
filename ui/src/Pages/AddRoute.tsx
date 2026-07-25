@@ -13,6 +13,7 @@ import {
   Network,
   Pencil,
   Plus,
+  RefreshCw,
   Route,
   ServerCog,
   ShieldCheck,
@@ -24,7 +25,6 @@ import { apiUrl } from "../Utils/env";
 import { useUserStore } from "../Zustand/userStore";
 
 interface ReverseHttpReq {
-  client_secret: string;
   name: string;
   endpoint: string;
 }
@@ -39,7 +39,6 @@ interface Config {
 }
 
 interface EditState {
-  client_secret: string;
   id: string;
   key: string;
   endpoint: string;
@@ -110,6 +109,26 @@ async function fetchClientSecretById(id: string) {
   };
 }
 
+async function rotateClientSecret(id: string) {
+  const response = await fetch(apiUrl(`/reverse-http/clientKey/${encodeURIComponent(id)}/rotate`), {
+    method: "POST",
+    credentials: "include",
+  });
+  const data = await readJson(response);
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to rotate client secret");
+  }
+
+  const record = data.data || data;
+  if (!record.client_secret) {
+    throw new Error("The API did not return the rotated client secret");
+  }
+  return {
+    id,
+    client_secret: record.client_secret as string,
+  };
+}
+
 async function deleteReverseConfig(id: string) {
   const response = await fetch(apiUrl(`/reverse-http/truncate/${encodeURIComponent(id)}`), {
     method: "DELETE",
@@ -144,8 +163,6 @@ export default function AddRoute() {
   const canAccessData = authStatus === "authenticated" && isLoggedIn;
   const [name, setName] = useState("");
   const [endpoint, setEndpoint] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
-  const [secretVisible, setSecretVisible] = useState(false);
   const [editSecretVisible, setEditSecretVisible] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -153,9 +170,7 @@ export default function AddRoute() {
     id: "",
     key: "",
     endpoint: "",
-    client_secret: "",
   });
-  const [clientSecretDirty, setClientSecretDirty] = useState(false);
 
   const configsQuery = useQuery({
     queryKey: ["reverse-http-list"],
@@ -172,9 +187,7 @@ export default function AddRoute() {
 
   const configs = canAccessData ? configsQuery.data ?? [] : [];
   const endpointCount = configs.filter((item) => item.endpoint).length;
-  const secretValue = clientSecretDirty
-    ? editedConfig.client_secret
-    : clientSecretQuery.data?.client_secret ?? editedConfig.client_secret;
+  const secretValue = clientSecretQuery.data?.client_secret ?? "";
 
   useEffect(() => {
     if (configsQuery.error) {
@@ -194,7 +207,6 @@ export default function AddRoute() {
       void queryClient.invalidateQueries({ queryKey: ["reverse-http-list"] });
       setName("");
       setEndpoint("");
-      setClientSecret("");
       toast.success("Route created");
     },
     onError: (error) => {
@@ -204,18 +216,28 @@ export default function AddRoute() {
 
   const updateConfigMutation = useMutation({
     mutationFn: updateReverseConfig,
-    onSuccess: (_data, updatedConfig) => {
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["reverse-http-list"] });
-      queryClient.setQueryData(["reverse-http-client-secret", updatedConfig.id], {
-        id: updatedConfig.id,
-        client_secret: updatedConfig.client_secret,
-      });
       setIsEditing(false);
-      setClientSecretDirty(false);
       toast.success("Route updated");
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, "Failed to update route"));
+    }
+  });
+
+  const rotateSecretMutation = useMutation({
+    mutationFn: rotateClientSecret,
+    onSuccess: (rotatedSecret) => {
+      queryClient.setQueryData(
+        ["reverse-http-client-secret", rotatedSecret.id],
+        rotatedSecret,
+      );
+      setEditSecretVisible(true);
+      toast.success("Client secret rotated. Update your backend now.");
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to rotate client secret"));
     }
   });
 
@@ -241,18 +263,13 @@ export default function AddRoute() {
     }
     const trimmedName = name.trim();
     const trimmedEndpoint = endpoint.trim();
-    if (!trimmedName || !trimmedEndpoint || !clientSecret.trim()) {
-      toast.error("Route name, endpoint, and client secret are required");
-      return;
-    }
-    if (new TextEncoder().encode(clientSecret.trim()).length < 32) {
-      toast.error("Code exchange requires a client secret of at least 32 bytes");
+    if (!trimmedName || !trimmedEndpoint) {
+      toast.error("Route name and endpoint are required");
       return;
     }
     createRouteMutation.mutate({
       name: trimmedName,
       endpoint: trimmedEndpoint,
-      client_secret: clientSecret.trim(),
     });
   };
 
@@ -268,17 +285,11 @@ export default function AddRoute() {
       toast.error("Please login to edit OAuth routes");
       return;
     }
-    const cachedClientSecret = queryClient.getQueryData<{ id: string; client_secret: string }>([
-      "reverse-http-client-secret",
-      item.id,
-    ]);
     setEditedConfig({
       id: item.id,
       key: item.key || item.name || "",
       endpoint: item.endpoint || "",
-      client_secret: cachedClientSecret?.client_secret ?? "",
     });
-    setClientSecretDirty(false);
     setEditSecretVisible(false);
     setIsEditing(true);
   };
@@ -321,31 +332,11 @@ export default function AddRoute() {
                 <label className="dev-label">Backend callback</label>
                 <input value={endpoint} onChange={(event) => setEndpoint(event.target.value)} className="dev-input font-mono text-xs" placeholder="http://api.example.com/oauth/callback" />
               </div>
-              <div>
-                <label className="dev-label">Client secret</label>
-                <div className="relative">
-                  <input
-                    type={secretVisible ? "text" : "password"}
-                    value={clientSecret}
-                    onChange={(event) => setClientSecret(event.target.value)}
-                    className="dev-input pr-10 font-mono text-xs"
-                    placeholder="at least 32 random characters"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setSecretVisible((current) => !current)}
-                    className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-cyan-700"
-                    aria-label={secretVisible ? "Hide client secret" : "Show client secret"}
-                  >
-                    {secretVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
               <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
                 <ShieldCheck className="mb-3 h-5 w-5 text-cyan-700" />
                 <p className="text-sm font-semibold text-gray-950">OAuth ready</p>
                 <p className="mt-1 text-xs leading-5 text-gray-600">
-                  Your backend SDK uses the saved id as client_id and exchanges each code once.
+                  The API generates a strong client secret. Your backend SDK uses the saved id as client_id and exchanges each code once.
                 </p>
               </div>
               <button type="submit" disabled={createRouteMutation.isPending} className="dev-button dev-button-primary w-full">
@@ -414,6 +405,10 @@ export default function AddRoute() {
                               toast.error("Please login to delete OAuth routes");
                               return;
                             }
+                            const confirmed = window.confirm(
+                              `Delete ${label}? This permanently removes the OAuth route and cannot be undone.`,
+                            );
+                            if (!confirmed) return;
                             deleteConfigMutation.mutate(item.id);
                           }}
                           className="dev-button dev-button-danger h-9 min-h-9 px-3"
@@ -463,18 +458,15 @@ export default function AddRoute() {
               <div>
                 <label className="dev-label">
                   <KeyRound className="h-3.5 w-3.5" />
-                  Client secret
+                  Server-generated client secret
                 </label>
                 <div className="relative">
                   <input
                     type={editSecretVisible ? "text" : "password"}
                     value={secretValue}
-                    onChange={(event) => {
-                      setClientSecretDirty(true);
-                      setEditedConfig({ ...editedConfig, client_secret: event.target.value });
-                    }}
+                    readOnly
                     disabled={clientSecretQuery.isFetching}
-                    className="dev-input pr-10 font-mono text-xs disabled:cursor-wait disabled:bg-gray-50"
+                    className="dev-input cursor-default pr-10 font-mono text-xs disabled:cursor-wait disabled:bg-gray-50"
                     placeholder={clientSecretQuery.isFetching ? "Loading client secret" : "Client secret"}
                   />
                   <button
@@ -485,6 +477,39 @@ export default function AddRoute() {
                     aria-label={editSecretVisible ? "Hide client secret" : "Show client secret"}
                   >
                     {clientSecretQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : editSecretVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-gray-500">
+                  Rotate this secret if it is compromised. The current secret stops working immediately.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void copyText(secretValue, `secret-${editedConfig.id}`)}
+                    disabled={!secretValue || clientSecretQuery.isFetching || rotateSecretMutation.isPending}
+                    className="dev-button h-9 min-h-9 px-3"
+                  >
+                    {copiedKey === `secret-${editedConfig.id}` ? <CheckCircle2 className="h-4 w-4 text-cyan-600" /> : <Copy className="h-4 w-4" />}
+                    Copy secret
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!canAccessData) {
+                        toast.error("Please login to rotate OAuth credentials");
+                        return;
+                      }
+                      const confirmed = window.confirm(
+                        "Rotate this client secret? The current secret will stop working immediately and your backend must be updated.",
+                      );
+                      if (!confirmed) return;
+                      rotateSecretMutation.mutate(editedConfig.id);
+                    }}
+                    disabled={clientSecretQuery.isFetching || rotateSecretMutation.isPending}
+                    className="dev-button dev-button-danger h-9 min-h-9 px-3"
+                  >
+                    {rotateSecretMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    Rotate secret
                   </button>
                 </div>
               </div>
@@ -498,13 +523,9 @@ export default function AddRoute() {
                     toast.error("Please login to update OAuth routes");
                     return;
                   }
-                  if (new TextEncoder().encode(secretValue).length < 32) {
-                    toast.error("Code exchange requires a client secret of at least 32 bytes");
-                    return;
-                  }
-                  updateConfigMutation.mutate({ ...editedConfig, client_secret: secretValue });
+                  updateConfigMutation.mutate(editedConfig);
                 }}
-                disabled={updateConfigMutation.isPending || clientSecretQuery.isFetching}
+                disabled={updateConfigMutation.isPending || clientSecretQuery.isFetching || rotateSecretMutation.isPending}
                 className="dev-button dev-button-primary flex-1"
               >
                 {updateConfigMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}

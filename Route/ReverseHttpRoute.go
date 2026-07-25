@@ -11,6 +11,11 @@ import (
 )
 
 func ReverseHttpRouter(app *fiber.App, ctrl *controller.Controller) {
+	noStore := func(c *fiber.Ctx) error {
+		c.Set(fiber.HeaderCacheControl, "no-store")
+		return c.Next()
+	}
+
 	crudLimit := limiter.New(limiter.Config{
 		Max:        25,
 		Expiration: 10 * time.Minute,
@@ -29,7 +34,7 @@ func ReverseHttpRouter(app *fiber.App, ctrl *controller.Controller) {
 		})
 	})
 
-	ReverseRoute.Post("/add", crudLimit, middleware.AuthUser, ctrl.CreateReverseRoute)
+	ReverseRoute.Post("/add", crudLimit, middleware.AuthUser, noStore, ctrl.CreateReverseRoute)
 
 	ReverseRoute.All("/oauth/callback/:id", normalLimit, ctrl.RedirectRequest)
 
@@ -37,7 +42,8 @@ func ReverseHttpRouter(app *fiber.App, ctrl *controller.Controller) {
 
 	ReverseRoute.Post("/edit", crudLimit, middleware.AuthUser, ctrl.UpdateConfig)
 
-	ReverseRoute.Get("/clientKey/:id", normalLimit, middleware.AuthUser, ctrl.GetConfigSecret)
+	ReverseRoute.Get("/clientKey/:id", normalLimit, middleware.AuthUser, noStore, ctrl.GetConfigSecret)
+	ReverseRoute.Post("/clientKey/:id/rotate", crudLimit, middleware.AuthUser, noStore, ctrl.RotateConfigSecret)
 
 	ReverseRoute.Get("/remote/:id", normalLimit, ctrl.RedirectRequest)
 
