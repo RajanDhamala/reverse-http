@@ -1,0 +1,14 @@
+{
+  "name": "reverse-http-published-sdk-demo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.25.0",
+  "scripts": {
+    "dev": "concurrently --names server,client --prefix-colors blue,green \"pnpm --filter reverse-http-demo-server dev\" \"pnpm --filter reverse-http-demo-client dev -- --host\"",
+    "build": "pnpm --filter reverse-http-demo-client build",
+    "start": "pnpm --filter reverse-http-demo-server start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

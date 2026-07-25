@@ -1,0 +1,8 @@
+packages:
+  - client
+  - server
+
+# This lets the demo consume your own new releases immediately if a global
+# minimumReleaseAge policy is enabled. All other dependencies keep that policy.
+minimumReleaseAgeExclude:
+  - '@reverse-http/*'
