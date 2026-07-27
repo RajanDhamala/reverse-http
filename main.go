@@ -76,7 +76,6 @@ func main() {
 
 	route.UserRouter(app, ctrl)
 	route.OauthRouter(app, ctrl)
-	route.AppConfigRouter(app, ctrl)
 	route.ReverseHttpRouter(app, ctrl)
 
 	app.Get("/", func(c *fiber.Ctx) error {

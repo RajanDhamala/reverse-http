@@ -1,0 +1,17 @@
+.git/
+.codex/
+.agents/
+examples/
+packages/
+ui/
+gomain
+PUBLISHING.md
+package-lock.json
+package.json
+script.sh
+README.md
+.env.example
+.env
+node_modules/
+script.sh
+.deploy.env

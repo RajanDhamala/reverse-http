@@ -1,37 +1,78 @@
+# Reverse HTTP
 
-# Reverse HTTP Config Service
+Reverse HTTP is a Go service for application configuration and secure OAuth handoff. It hosts Google and GitHub authentication for registered applications, then returns a short-lived code that the application backend exchanges exactly once.
 
-A lightweight **Go-based reverse HTTP server** that acts as a **reverse proxy for OAuth** and provides basic **app configuration** to clients when the app starts.
+## Features
 
-## Purpose
+- Application configuration endpoints for web and mobile clients
+- Registered Google and GitHub OAuth routes
+- PKCE (`S256`) with confidential client authentication
+- Opaque authorization codes with a 60-second lifetime
+- Express, React, and Python consumer SDKs
+- Web management interface and live OAuth route monitoring
 
-- Serve basic configuration to apps on startup
-- Host Google and GitHub OAuth for registered applications
-- Hand applications a short-lived opaque code that their backend exchanges once
+## OAuth flow
 
-## OAuth handoff
+1. The application backend creates state and a PKCE verifier.
+2. The browser is redirected to the registered Reverse HTTP OAuth route.
+3. Reverse HTTP completes provider authentication and redirects with `code` and `state` only.
+4. The application backend exchanges the code at `POST /oauth/exchange`.
+5. Reverse HTTP validates the route, callback URI, PKCE verifier, and client credentials before returning a normalized identity.
 
-Every registered route uses PKCE (`S256`) plus confidential client authentication. The browser callback contains only `code` and application `state`; the registered backend sends the code, exact callback URI, and verifier to `POST /oauth/exchange`. Redis stores only a SHA-256 code digest for 60 seconds and atomically consumes it with `GETDEL`.
+Redis stores only a SHA-256 digest of each code and consumes it atomically with `GETDEL`. Provider tokens, client secrets, and user profiles are never placed in the browser callback.
 
-Registered application callbacks may use either HTTP or HTTPS. The hosted provider and server-to-server exchange must use HTTPS in production because application credentials cross that connection.
+## SDKs
 
-The Express, React, and Python SDKs accept HTTP callback backends. Prefer HTTPS outside trusted networks so the callback and temporary state cookie are encrypted in transit.
+| Package | Role |
+| --- | --- |
+| [`@reverse-http/express`](packages/express) | Express middleware for state, PKCE, callback validation, and code exchange |
+| [`@reverse-http/react`](packages/react) | Style-neutral browser navigation to an application backend |
+| [`reverse-http-oauth`](packages/python) | Framework-independent Python client with Flask and FastAPI adapters |
 
-SDKs live in [`packages/express`](packages/express), [`packages/react`](packages/react), and [`packages/python`](packages/python). The backend SDKs validate state, exchange the code, and return a normalized identity; the consuming application still owns its users and sessions.
+The consuming application remains responsible for its own users, sessions, and authorization rules.
 
-Apply migrations through [`00003_clean_oauth_code_rollout.sql`](db/migrations/00003_clean_oauth_code_rollout.sql) before deploying this version. Migration `00003` intentionally clears existing OAuth route registrations, removes the obsolete handoff-mode column, and requires client secrets of at least 32 bytes. Route owners must recreate their OAuth routes after the clean rollout.
+## Repository structure
 
-## Production environment
+| Path | Contents |
+| --- | --- |
+| `Controller/`, `Route/`, `Middleware/` | Go API and OAuth request handling |
+| `Utils/`, `Configs/`, `Models/` | Security, storage, and shared server code |
+| `db/` | PostgreSQL migrations, queries, and generated SQL access |
+| `ui/` | React management interface |
+| `packages/` | Express, React, and Python SDKs |
+| `examples/` | Standalone SDK integration examples |
+| `media/` | Editable product-video sources, timing, audio stems, and rebuild workflow |
 
-Copy [`.env.example`](.env.example) into your deployment environment and replace every placeholder. Production startup requires `BACKEND_URL` to use HTTPS and requires different `ACCESS_TOKEN_SECRET` and `REFRESH_TOKEN_SECRET` values of at least 32 bytes each. Generate each signing secret independently, for example with `openssl rand -base64 48`.
+## Development
 
-The OAuth client secret stored for each registered route is separate from these JWT signing secrets. It must also contain at least 32 bytes and is created when the route is registered.
+Go server:
 
-The UI is deployed separately. Configure its two public build-time values from [`ui/.env.example`](ui/.env.example).
+```bash
+go run .
+```
 
-## Tech Stack
+SDK workspace:
 
-- **Go 1.25**
-- [Fiber v2](https://github.com/gofiber/fiber)
-- Docker (multi-stage build)
-- Alpine Linux base for lightweight production images
+```bash
+npm ci
+npm run typecheck:sdk
+npm run test:sdk
+npm run build:sdk
+```
+
+Web interface:
+
+```bash
+npm ci --prefix ui
+npm run dev --prefix ui
+```
+
+Database changes are versioned in [`db/migrations`](db/migrations). Migration `00003_clean_oauth_code_rollout.sql` removes the legacy handoff mode and clears existing OAuth route registrations as part of the one-time-code rollout.
+
+## Stack
+
+- Go 1.25 and Fiber v2
+- PostgreSQL and Redis
+- React 19, TypeScript, Vite, and Tailwind CSS
+- Vitest and Go test
+- Docker

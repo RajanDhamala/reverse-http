@@ -1,13 +1,25 @@
 # reverse-http-oauth
 
-Python 3.10+ support for Reverse HTTP's PKCE-protected, one-time OAuth code exchange. The core client is framework independent; small Flask and FastAPI adapters manage the temporary OAuth cookie.
+Python 3.10+ support for Reverse HTTP's PKCE-protected, one-time OAuth exchange. The core client is framework independent, with adapters for Flask and FastAPI.
+
+## Installation
+
+```bash
+pip install "reverse-http-oauth[flask]"
+```
+
+FastAPI applications can use the `fastapi` extra instead.
+
+## Flask usage
 
 ```python
 import os
 
+from flask import Flask
 from reverse_http_oauth import ReverseHttpOAuth
 from reverse_http_oauth.flask import FlaskReverseHttpOAuth
 
+app = Flask(__name__)
 oauth = FlaskReverseHttpOAuth(ReverseHttpOAuth(
     provider_url=os.environ["REVERSE_HTTP_PROVIDER_URL"],
     client_id=os.environ["REVERSE_HTTP_CLIENT_ID"],
@@ -22,13 +34,20 @@ def oauth_start(provider: str):
 
 @app.get("/oauth/callback")
 def oauth_callback():
-    return oauth.callback(
-        lambda identity, request: create_session_and_redirect(identity),
-    )
+    return oauth.callback(complete_application_login)
 ```
 
-For FastAPI, import `FastAPIReverseHttpOAuth` from `reverse_http_oauth.fastapi`. Both adapters pass a typed identity to the application and never create or choose an application session.
+`FastAPIReverseHttpOAuth` provides the same flow for FastAPI applications. Both adapters return a typed identity and leave user and session storage to the consuming application.
 
-Register `callback_url` exactly on the OAuth route. Callback URLs may use HTTP or HTTPS; HTTP callbacks receive a non-`Secure` temporary state cookie. The hosted `provider_url` must use HTTPS, except for explicitly enabled local development. Both secrets must contain at least 32 bytes. If a callback raises `invalid_grant`, restart OAuth instead of retrying the consumed or expired code.
+## Configuration
 
-Configure application access logs to redact the callback query string, even though the code is short-lived and single use.
+- `provider_url` is the public Reverse HTTP API base.
+- `client_id` and `client_secret` identify the registered OAuth route.
+- `callback_url` must exactly match the route registration.
+- `state_cookie_secret` signs the temporary OAuth transaction cookie.
+- `allowed_providers` can restrict the default Google and GitHub provider set.
+- `allow_insecure_development` permits a local HTTP provider during development.
+
+Client and cookie secrets must each contain at least 32 bytes. HTTP callback URLs use a non-`Secure` temporary cookie; HTTPS is appropriate whenever traffic leaves a trusted network.
+
+An expired or consumed authorization code produces `invalid_grant` and starts a new OAuth flow.

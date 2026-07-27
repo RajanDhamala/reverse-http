@@ -1,9 +1,20 @@
 # @reverse-http/express
 
-Express middleware for Reverse HTTP's PKCE-protected, one-time OAuth code exchange.
+Express middleware for Reverse HTTP's PKCE-protected, one-time OAuth exchange.
+
+## Installation
+
+```bash
+npm install @reverse-http/express
+```
+
+## Usage
 
 ```ts
+import express from "express";
 import { createReverseHttpOAuth } from "@reverse-http/express";
+
+const app = express();
 
 const oauth = createReverseHttpOAuth({
   providerUrl: process.env.REVERSE_HTTP_PROVIDER_URL!,
@@ -16,16 +27,25 @@ const oauth = createReverseHttpOAuth({
 app.get("/oauth/start/:provider", oauth.start());
 app.get("/oauth/callback", oauth.callback({
   onAuthenticated: async ({ identity, res }) => {
-    // Create the application's user and session here.
+    await applicationSessions.create(identity);
     res.redirect("https://app.example.com");
   },
 }));
 ```
 
-The package never creates application sessions or exposes the client secret to the browser.
+The package manages OAuth state, PKCE, the temporary state cookie, callback validation, and server-to-server code exchange. Application users and sessions remain owned by the consuming service.
 
-Register `callbackUrl` exactly on the OAuth route. Callback URLs may use HTTP or HTTPS; HTTP callbacks receive a non-`Secure` temporary state cookie. The hosted `providerUrl` must use HTTPS, except for explicitly enabled local development. Both secrets must contain at least 32 bytes, and `stateCookieSecret` must be separate application configuration.
+## Configuration
 
-An `invalid_grant` means the code was missing, expired, or already consumed. Restart the OAuth start route; do not retry the same callback code.
+- `providerUrl` is the public Reverse HTTP API base.
+- `clientId` and `clientSecret` identify the registered OAuth route.
+- `callbackUrl` must exactly match the route registration.
+- `stateCookieSecret` signs the temporary OAuth transaction cookie.
+- `allowedProviders` can restrict the default Google and GitHub provider set.
+- `allowInsecureDevelopment` permits a local HTTP provider during development.
 
-Configure application access logs to redact the callback query string, even though the code is short-lived and single use.
+Client and cookie secrets must each contain at least 32 bytes. HTTP callback URLs use a non-`Secure` temporary cookie; HTTPS is appropriate whenever traffic leaves a trusted network.
+
+## Errors
+
+Callback failures use `ReverseHttpOAuthError` with stable codes such as `invalid_state`, `invalid_grant`, `provider_unavailable`, and `invalid_response`. An expired or consumed code starts a new OAuth flow rather than reusing the callback request.

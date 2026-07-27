@@ -1,6 +1,6 @@
 import { Suspense, useEffect } from "react";
 import "./index.css";
-import { LazyLandingPage, LazyRegisterPage, LazyLoginPage, LazyTestPage, LazyOAuthCallback, LazyOAuthLiveDashboard, LazyUpdateConfig, LazyAppConfig, LazyDocumentationPage } from "./LazyLoading/LazyLoading";
+import { LazyLandingPage, LazyLoginPage, LazyTestPage, LazyOAuthCallback, LazyOAuthLiveDashboard, LazyUpdateConfig, LazyDocumentationPage, LazyExpressReactSetup } from "./LazyLoading/LazyLoading";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import queryClient from "./Utils/QueryConfig.tsx";
@@ -69,7 +69,6 @@ function App() {
           <Routes>
             <Route path="/" element={<LazyLandingPage />} />
             <Route path="/login" element={<LazyLoginPage />} />
-            <Route path="/register" element={<LazyRegisterPage />} />
             <Route
               path="/oauth/callback"
               element={<LazyOAuthCallback />}
@@ -79,9 +78,9 @@ function App() {
             <Route path="/test" element={<LazyTestPage />} />
 
             <Route path="/docs" element={<LazyDocumentationPage />} />
+            <Route path="/docs/express-react" element={<LazyExpressReactSetup />} />
             <Route path="/reverse" element={<LazyUpdateConfig />} />
             <Route path="/oauth" element={<LazyUpdateConfig />} />
-            <Route path="/app" element={<LazyAppConfig />} />
             <Route path="*" element={<Error404Page />} />
           </Routes>
         </Suspense>
